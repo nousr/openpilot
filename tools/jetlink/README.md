@@ -1,5 +1,9 @@
 # Mac Chestnut USB bench
 
+This branch also includes opt-in low-speed left/right policy desires. See
+[TURN_DESIRE.md](TURN_DESIRE.md) for activation, initial settings and validation
+limits. The parked USB bench below remains separate from vehicle actuation.
+
 This branch connects stock openpilot's camera/model loop to Jetlink on an
 Apple Silicon Mac. The normal manager can now start the USB owner when
 `JetlinkLink=1`; the default remains off. The isolated benchmark still

@@ -351,7 +351,8 @@ def main(demo=False):
   long_delay = CP.longitudinalActuatorDelay + LONG_SMOOTH_SECONDS
   prev_action = log.ModelDataV2.Action()
 
-  DH = DesireHelper()
+  DH = DesireHelper(turn_desire_enabled=params.get_bool("LowSpeedTurnDesire"))
+  cloudlog.info("low-speed turn desires enabled: %s", DH.turn.enabled)
 
   while True:
     # Keep receiving frames until we are at least 1 frame ahead of previous extra frame
@@ -472,7 +473,12 @@ def main(demo=False):
       l_lane_change_prob = desire_state[log.Desire.laneChangeLeft]
       r_lane_change_prob = desire_state[log.Desire.laneChangeRight]
       lane_change_prob = l_lane_change_prob + r_lane_change_prob
-      DH.update(sm['carState'], sm['carControl'].latActive, lane_change_prob)
+      previous_turn_state = DH.turn.state
+      DH.update(sm['carState'], sm['carControl'].latActive, lane_change_prob,
+                turn_inputs_valid=sm.all_checks(['carState', 'carControl']))
+      if DH.turn.state != previous_turn_state:
+        cloudlog.event("low_speed_turn_desire", state=DH.turn.state.value, direction=int(DH.turn.direction),
+                       desire=int(DH.desire), v_ego=sm['carState'].vEgo)
       modelv2_send.modelV2.meta.laneChangeState = DH.lane_change_state
       modelv2_send.modelV2.meta.laneChangeDirection = DH.lane_change_direction
 

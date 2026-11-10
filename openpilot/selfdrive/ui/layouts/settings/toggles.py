@@ -16,6 +16,11 @@ DESCRIPTIONS = {
     "Your attention is required at all times to use this feature."
   ),
   "DisengageOnAccelerator": tr_noop("When enabled, pressing the accelerator pedal will disengage openpilot."),
+  "LowSpeedTurnDesire": tr_noop(
+    "Experimental turn intent for closed-course testing. With steering assistance active, a left or right turn signal below " +
+    "15 mph (24 km/h) asks the driving model to turn once the car is moving. This does not increase steering capability or " +
+    "guarantee the turn can be completed. Disengage to cancel steering assistance."
+  ),
   "LongitudinalPersonality": tr_noop(
     "Standard is recommended. In aggressive mode, openpilot will follow lead cars closer and be more aggressive with the gas and brake. " +
     "In relaxed mode openpilot will stay further away from lead cars. On supported cars, you can cycle through these personalities with " +
@@ -56,6 +61,12 @@ class TogglesLayout(Widget):
         DESCRIPTIONS["IsLdwEnabled"],
         "warning.png",
         False,
+      ),
+      "LowSpeedTurnDesire": (
+        lambda: tr("Low-Speed Turn Intent (Experimental)"),
+        DESCRIPTIONS["LowSpeedTurnDesire"],
+        "chffr_wheel.png",
+        True,
       ),
       "AlwaysOnDM": (
         lambda: tr("Always-On Driver Monitoring"),
