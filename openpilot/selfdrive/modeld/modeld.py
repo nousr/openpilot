@@ -244,6 +244,7 @@ def main(demo=False):
 
   # a cable is a chestnut on its way, unless a USB host is on it
   HOOKS = jetlink_adapter.hooks()
+  jetlink_requested = jetlink_adapter.link_on()
   CHESTNUT = chestnut_compiled() and (chestnut_present() or (cable_connected() and not usb_host_connected()
                                                          and not jetlink_adapter.link_on()))
   if CHESTNUT:
@@ -465,6 +466,7 @@ def main(demo=False):
                      publish_state, meta_main.frame_id, meta_extra.frame_id, frame_id,
                      frame_drop_ratio, meta_main.timestamp_eof, model_execution_time, extrinsics_calibration_seen)
       modelv2_send.modelV2.big = model.chestnut
+      jetlink_adapter.fill_health(modelv2_send.modelV2, model, jetlink_requested)
 
       desire_state = modelv2_send.modelV2.meta.desireState
       l_lane_change_prob = desire_state[log.Desire.laneChangeLeft]

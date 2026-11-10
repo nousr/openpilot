@@ -1,9 +1,30 @@
 # Mac Chestnut USB bench
 
 This branch connects stock openpilot's camera/model loop to Jetlink on an
-Apple Silicon Mac. It is an isolated, parked benchmark integration. The
-normal manager does not start the owner, and the adapter requires both
-`JETLINK_BENCH=1` and a private `OPENPILOT_PREFIX`.
+Apple Silicon Mac. The normal manager can now start the USB owner when
+`JetlinkLink=1`; the default remains off. The isolated benchmark still
+requires `JETLINK_BENCH=1` and a private `OPENPILOT_PREFIX`.
+
+## Experimental manager integration
+
+Live mode pins the Mountain Dew model below. Model messages carry the
+remote model's identity, session/generation, held-output flag and original
+output timestamp at 20 Hz. Selfdrived checks these in memory at 100 Hz;
+the one-second runtime status file is not used for engagement decisions.
+
+Engagement requires at least 20 fresh outputs and one second of readiness.
+A held output blocks a new engagement, while an existing engagement can
+bridge a delay up to the 150 ms freshness bound. Missing/stale output,
+fallback to the local model, an unexpected model, or a model switch while
+engaged causes an immediate-disable event. Recovery must prove readiness
+again and does not generate an enable event. The USB owner restarts after
+exit and participates in normal manager cleanup. Boot cuts USB input draw
+when the link is enabled. Driver monitoring and existing safety checks
+remain intact.
+
+These are experimental engineering thresholds, not driving qualification.
+Recorded-route numerical comparison was explicitly deferred for this pass.
+The historical benchmark results below predate manager integration.
 
 The comma preprocesses its two road-camera frames with its existing Adreno
 warp. Jetlink transfers those inputs over USB to the Mac, which runs the

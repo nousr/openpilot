@@ -67,6 +67,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"JetlinkProgress", {CLEAR_ON_MANAGER_START, JSON}},
     {"JetlinkSpec", {PERSISTENT, JSON}},
     {"JetlinkChargePhone", {PERSISTENT, BOOL, "0"}},
+    {"Offroad_JetlinkUnavailable", {CLEAR_ON_MANAGER_START, JSON}},
     {"IsRhdDetected", {PERSISTENT, BOOL}},
     {"IsReleaseBranch", {CLEAR_ON_MANAGER_START, BOOL}},
     {"IsTestedBranch", {CLEAR_ON_MANAGER_START, BOOL}},

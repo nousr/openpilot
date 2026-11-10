@@ -170,6 +170,14 @@ class PythonProcess(ManagerProcess):
     self.shutting_down = False
 
 
+class RestartingPythonProcess(PythonProcess):
+  """Reap a dead resident service before manager starts its replacement."""
+  def start(self) -> None:
+    if self.proc is not None and self.proc.exitcode is not None:
+      self.stop()
+    super().start()
+
+
 class DaemonProcess(ManagerProcess):
   """Python process that has to stay running across manager restart.
   This is used for athena so you don't lose SSH access when restarting manager."""

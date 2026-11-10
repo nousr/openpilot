@@ -407,6 +407,21 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
     ET.NO_ENTRY: NoEntryAlert("Big Model Loading"),
   },
 
+  EventName.jetlinkNotReady: {
+    ET.NO_ENTRY: NoEntryAlert("Mac Model Warming Up"),
+    ET.PERMANENT: NormalPermanentAlert("Mac Model Warming Up", "Waiting for fresh predictions"),
+  },
+
+  EventName.jetlinkUnavailable: {
+    ET.NO_ENTRY: NoEntryAlert("Mac Model Unavailable"),
+    ET.IMMEDIATE_DISABLE: ImmediateDisableAlert("Mac Model Unavailable"),
+    ET.PERMANENT: NormalPermanentAlert("Mac Model Unavailable", "Check Mac and USB connection"),
+  },
+
+  EventName.jetlinkReady: {
+    ET.PERMANENT: NormalPermanentAlert("Mac Chestnut", "Model ready", priority=Priority.LOWEST),
+  },
+
   EventName.bigModelFailed: {
     ET.SOFT_DISABLE: soft_disable_alert("Big Model Failed"),
     ET.PERMANENT: NormalPermanentAlert("Big Model Failed ", "Restart the car to retry,\nsmall model is still available", duration=20.),

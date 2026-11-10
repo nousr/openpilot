@@ -92,6 +92,7 @@ function launch {
 
   # hardware specific init
   if [ -f /AGNOS ]; then
+    sudo -n bash jetlink/comma/jetlink-root.sh boot /data/params/d/JetlinkLink
     agnos_init
   fi
 

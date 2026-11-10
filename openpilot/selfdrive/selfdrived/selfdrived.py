@@ -25,6 +25,8 @@ from openpilot.selfdrive.selfdrived.alertmanager import AlertManager, set_offroa
 
 from openpilot.common.version import get_build_metadata
 from openpilot.common.hardware import HARDWARE
+from openpilot import jetlink_adapter
+from openpilot.selfdrive.selfdrived.jetlink import JetlinkGuard, add_events as add_jetlink_events
 
 REPLAY = "REPLAY" in os.environ
 SIMULATION = "SIMULATION" in os.environ
@@ -70,6 +72,8 @@ class SelfdriveD:
     self.big_model_active = False
     self.big_model_failed = False
     self.big_model_ready_t = 0.
+    self.jetlink_guard = JetlinkGuard(jetlink_adapter.link_on(), jetlink_adapter.MODEL_SHA256)
+    self.jetlink_reason = None
 
     # Setup sockets
     self.pm = messaging.PubMaster(['selfdriveState', 'onroadEvents'])
@@ -153,6 +157,15 @@ class SelfdriveD:
     """Compute onroadEvents from carState"""
 
     self.events.clear()
+
+    # Health travels with each model output. Recheck its age at 100 Hz even
+    # if no new model message arrives; never poll the one-second status file.
+    remote = self.jetlink_guard.update(self.sm['modelV2'], self.sm.valid['modelV2'] and self.sm.alive['modelV2'],
+                                      self.sm.logMonoTime['modelV2'], time.monotonic_ns(), self.enabled)
+    add_jetlink_events(self.events, remote)
+    if remote.required and remote.reason != self.jetlink_reason:
+      cloudlog.event('jetlink_health', ready=remote.ready, fault=remote.fault, reason=remote.reason)
+      self.jetlink_reason = remote.reason
 
     if self.sm['controlsState'].lateralControlState.which() == 'debugState':
       self.events.add(EventName.joystickDebug)

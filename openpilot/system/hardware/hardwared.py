@@ -11,6 +11,7 @@ from collections import OrderedDict, namedtuple
 
 import openpilot.cereal.messaging as messaging
 from openpilot.cereal import log
+from openpilot import jetlink_adapter
 from openpilot.cereal.services import SERVICE_LIST
 from openpilot.common.utils import strip_deprecated_keys
 from openpilot.common.filter_simple import FirstOrderFilter
@@ -251,6 +252,7 @@ def hardware_thread(end_event, hw_queue) -> None:
   chestnut = Chestnut()
   chestnut_status = ChestnutStatus()
   branch = get_short_branch()
+  jetlink_hooks = jetlink_adapter.hooks()
 
   while not end_event.is_set():
     sm.update(PANDA_STATES_TIMEOUT)
@@ -353,6 +355,7 @@ def hardware_thread(end_event, hw_queue) -> None:
     startup_conditions["up_to_date"] = params.get("Offroad_ConnectivityNeeded") is None or params.get_bool("DisableUpdates") or params.get_bool("SnoozeUpdate")
     startup_conditions["no_excessive_actuation"] = params.get("Offroad_ExcessiveActuation") is None
     startup_conditions["not_uninstalling"] = not params.get_bool("DoUninstall")
+    startup_conditions["not_powering_off"] = not params.get_bool("DoShutdown")
     startup_conditions["accepted_terms"] = params.get("HasAcceptedTerms") == terms_version
 
     # with 2% left, we killall, otherwise the phone will take a long time to boot
@@ -364,6 +367,8 @@ def hardware_thread(end_event, hw_queue) -> None:
     startup_conditions["device_temp_engageable"] = thermal_status < ThermalStatus.overheated
 
     startup_conditions["not_flashing_chestnut"] = not chestnut.flashing
+    reason = jetlink_hooks.reason() if jetlink_adapter.link_on() else None
+    set_offroad_alert_if_changed("Offroad_JetlinkUnavailable", reason is not None, extra_text=reason)
 
     # ensure device is fully booted
     startup_conditions["device_booted"] = startup_conditions.get("device_booted", False) or HARDWARE.booted()

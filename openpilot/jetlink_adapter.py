@@ -1,4 +1,4 @@
-"""Jetlink integration for isolated, parked camera/model benchmarks."""
+"""USB Jetlink integration, with opt-in live mode and isolated bench support."""
 import functools
 import os
 from pathlib import Path
@@ -6,12 +6,20 @@ import re
 
 API = 3
 OWNER = 'jetlinkd'
+MODEL_SHA256 = '87fe86ca0813c099efddf9173ba503be2e40ea4c5362c36812a44141f4cb07d4'
 
 
 def bench_enabled() -> bool:
   prefix = os.environ.get('OPENPILOT_PREFIX', '')
   return (os.environ.get('JETLINK_BENCH') == '1' and prefix != 'd'
           and re.fullmatch(r'[A-Za-z0-9_-]+', prefix) is not None)
+
+
+def supported_namespace() -> bool:
+  # An explicitly requested bench must never fall through to live mode.
+  if os.environ.get('JETLINK_BENCH') == '1':
+    return bench_enabled()
+  return os.environ.get('OPENPILOT_PREFIX', 'd') in ('', 'd')
 
 
 def _adapter_class():
@@ -21,7 +29,7 @@ def _adapter_class():
   class Adapter(Stock):
     ADAPTER_MODULE = 'openpilot.jetlink_adapter'
     KEYS = replace(Stock.KEYS, big_model='JetlinkModel')
-    OWNER_LOG = Path(os.environ.get('JETLINK_BENCH_OUTPUT', '/data/jetlink-bench')) / 'owner.log'
+    OWNER_LOG = Path(os.environ.get('JETLINK_BENCH_OUTPUT', '/data/jetlink')) / 'owner.log'
 
     def model_root(self) -> Path:
       return self.basedir / '.jetlink-models'
@@ -38,15 +46,15 @@ def owner_config():
 
 
 def main():
-  if not bench_enabled():
-    raise SystemExit('Jetlink requires JETLINK_BENCH=1 and a private OPENPILOT_PREFIX')
+  if not supported_namespace():
+    raise SystemExit('Jetlink requires the normal namespace or an explicitly isolated bench')
   _adapter_class().main()
 
 
 def link_on() -> bool:
-  if not bench_enabled():
+  if not supported_namespace():
     return False
-  prefix = os.environ['OPENPILOT_PREFIX']
+  prefix = os.environ.get('OPENPILOT_PREFIX') or 'd'
   root = os.environ.get('PARAMS_ROOT') or ('/data/params' if os.path.isfile('/AGNOS') else
                                         os.path.expanduser(f'~/.comma{prefix}/params'))
   try:
@@ -62,13 +70,31 @@ def _cloudlog():
 
 @functools.cache
 def hooks():
-  if not bench_enabled():
+  if not supported_namespace():
     return _NoJetlink('')
   try:
     from jetlink.openpilot.hooks import Hooks
     return Hooks(API, adapter, link_on=link_on, log=_cloudlog)
   except Exception as e:
     return _NoJetlink(f'Jetlink is unavailable: {e}')
+
+
+def should_run(started, params, CP) -> bool:
+  return link_on() and hooks().should_run(started, params, CP)
+
+
+def fill_health(message, model, requested: bool) -> None:
+  """Publish health alongside the exact prediction it describes."""
+  if not requested:
+    return
+  message.jetlink.present = True
+  try:
+    health = model.frame_health
+    for name, value in health.items():
+      setattr(message.jetlink, name, value)
+  except Exception:
+    # Default inactive health blocks engagement even if the adapter failed.
+    message.jetlink.active = False
 
 
 class _NoJetlink:

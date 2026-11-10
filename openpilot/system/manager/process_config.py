@@ -5,7 +5,8 @@ import platform
 from opendbc.car.structs import car
 from openpilot.common.params import Params
 from openpilot.common.hardware import PC, COMMA_HARDWARE
-from openpilot.system.manager.process import PythonProcess, NativeProcess, DaemonProcess
+from openpilot.system.manager.process import PythonProcess, NativeProcess, DaemonProcess, RestartingPythonProcess
+from openpilot import jetlink_adapter
 
 WEBCAM = os.getenv("USE_WEBCAM") is not None
 
@@ -86,6 +87,7 @@ procs = [
   PythonProcess("timed", "openpilot.system.timed", always_run, enabled=not PC),
 
   PythonProcess("modeld", "openpilot.selfdrive.modeld.modeld", only_onroad),
+  RestartingPythonProcess(jetlink_adapter.OWNER, "openpilot.jetlink_adapter", jetlink_adapter.should_run, enabled=not PC),
   PythonProcess("navd", "openpilot.selfdrive.navigation.navd", navigation),
   PythonProcess("mapsd", "openpilot.selfdrive.navigation.mapsd", navigation),
   PythonProcess("dmonitoringmodeld", "openpilot.selfdrive.modeld.dmonitoringmodeld", driverview, enabled=(WEBCAM or not PC)),

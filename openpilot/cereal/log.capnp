@@ -130,6 +130,9 @@ struct OnroadEvent @0xc4fa6047f024e718 {
     excessiveActuation @96;
     bigModelLoading @100;
     bigModelFailed @102;
+    jetlinkNotReady @106;
+    jetlinkUnavailable @107;
+    jetlinkReady @108;
 
     lowBatteryDEPRECATED @40;
     soundsUnavailableDEPRECATED @47;
@@ -1061,6 +1064,17 @@ struct ModelDataV2 {
   modelExecutionTime @15 :Float32;
   rawPredictions @16 :Data;
   big @27 :Bool;
+  jetlink @28 :JetlinkHealth;
+
+  struct JetlinkHealth {
+    present @0 :Bool;
+    active @1 :Bool;
+    held @2 :Bool;
+    lastOutputMonoTime @3 :UInt64;
+    generation @4 :UInt32;
+    sessionId @5 :UInt32;
+    sha256 @6 :Text;
+  }
 
   # predicted future position, orientation, etc..
   position @4 :XYZTData;

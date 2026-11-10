@@ -54,6 +54,32 @@ class TestAdapter(unittest.TestCase):
     (self.store / 'JetlinkLink').unlink()
     self.assertFalse(fork.link_on())
 
+  def test_live_mode_requires_explicit_usb_setting(self):
+    live = Path(self.temp.name) / 'd'
+    live.mkdir()
+    with patch.dict(os.environ, {'OPENPILOT_PREFIX': 'd', 'JETLINK_BENCH': '0'}):
+      self.assertFalse(fork.link_on())
+      (live / 'JetlinkLink').write_text('1')
+      self.assertTrue(fork.link_on())
+      (live / 'JetlinkLink').write_text('0')
+      self.assertFalse(fork.link_on())
+
+  def test_bench_cannot_fall_through_to_live_namespace(self):
+    live = Path(self.temp.name) / 'd'
+    live.mkdir()
+    (live / 'JetlinkLink').write_text('1')
+    with patch.dict(os.environ, {'OPENPILOT_PREFIX': 'd', 'JETLINK_BENCH': '1'}):
+      self.assertFalse(fork.link_on())
+      with self.assertRaises(SystemExit):
+        fork.main()
+
+  def test_frame_health_missing_adapter_is_explicitly_inactive(self):
+    from types import SimpleNamespace
+    msg = SimpleNamespace(jetlink=SimpleNamespace())
+    fork.fill_health(msg, object(), requested=True)
+    self.assertTrue(msg.jetlink.present)
+    self.assertFalse(msg.jetlink.active)
+
   def test_normal_modeld_does_not_bind_jetlink(self):
     with patch.dict(os.environ, {'JETLINK_BENCH': '0'}), patch.object(fork, 'adapter', side_effect=AssertionError('must not bind')):
       self.assertFalse(fork.hooks().prepare(False))
