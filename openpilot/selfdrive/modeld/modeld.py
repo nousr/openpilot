@@ -37,6 +37,7 @@ from openpilot.common.transformations.camera import DEVICE_CAMERAS
 from openpilot.system.camerad.cameras.nv12_info import get_nv12_info
 from openpilot.common.transformations.model import get_warp_matrix
 from openpilot.selfdrive.controls.lib.desire_helper import DesireHelper
+from openpilot.selfdrive.modeld.desire_frame import DesireFrame
 from openpilot.selfdrive.controls.lib.drive_helpers import get_accel_from_plan, should_stop, smooth_value, get_curvature_from_plan
 from openpilot.selfdrive.modeld.parse_model_outputs import Parser
 from openpilot.selfdrive.modeld.fill_model_msg import fill_model_msg, fill_driving_model_data, fill_pose_msg, PublishState
@@ -209,6 +210,8 @@ class ModelState:
     inputs['desire_pulse'][0] = 0
     self.npy['desire'][:] = np.where(inputs['desire_pulse'] - self.prev_desire > .99, inputs['desire_pulse'], 0)
     self.prev_desire[:] = inputs['desire_pulse']
+    # this model runs every frame it is given: a pulse packed is a pulse taken
+    self.desire_sent = bool(self.npy['desire'].any())
     self.npy['traffic_convention'][:] = inputs['traffic_convention']
     self.npy['action_t'][:] = inputs['action_t']
 
@@ -352,6 +355,7 @@ def main(demo=False):
   prev_action = log.ModelDataV2.Action()
 
   DH = DesireHelper(turn_desire_enabled=params.get_bool("LowSpeedTurnDesire"))
+  desire_frame = DesireFrame(DH)
   cloudlog.info("low-speed turn desires enabled: %s", DH.turn.enabled)
 
   while True:
@@ -388,7 +392,8 @@ def main(demo=False):
       meta_extra = meta_main
 
     sm.update(0)
-    desire = DH.desire
+    # the desire for this frame: a queued turn request is checked again on these inputs
+    vec_desire = desire_frame.before(sm['carState'], sm['carControl'].latActive, sm.all_checks(['carState', 'carControl']))
     is_rhd = sm["driverMonitoringState"].isRHD
     frame_id = sm["narrowRoadCameraState"].frameId
     v_ego = max(sm["carState"].vEgo, 0.)
@@ -405,10 +410,6 @@ def main(demo=False):
 
     traffic_convention = np.zeros(2)
     traffic_convention[int(is_rhd)] = 1
-
-    vec_desire = np.zeros(ModelConstants.DESIRE_LEN, dtype=np.float32)
-    if desire >= 0 and desire < ModelConstants.DESIRE_LEN:
-      vec_desire[desire] = 1
 
     # tracked dropped frames
     vipc_dropped_frames = max(0, meta_main.frame_id - last_vipc_frame_id - 1)
@@ -438,11 +439,15 @@ def main(demo=False):
       send_chestnut = (chestnut_state is not None and
                        run_count % round(ModelConstants.MODEL_RUN_FREQ / SERVICE_LIST['chestnutGpuState'].frequency) == 0)
       model_output = model.run(bufs, transforms, inputs, chestnut_state.send if send_chestnut else None)
-      if HOOKS.handed_over(model):
+      handed_over = HOOKS.handed_over(model)
+      desire_frame.ran(model, handed_over)
+      if handed_over:
         run_count = 0
     except Exception:
       if not model.chestnut:
         raise
+      # the model a queued turn request was for is gone
+      desire_frame.failed()
       # fallback to small model
       cloudlog.exception("big model failed, fall back to small")
       params.put_bool("ChestnutActive", False)
@@ -473,12 +478,8 @@ def main(demo=False):
       l_lane_change_prob = desire_state[log.Desire.laneChangeLeft]
       r_lane_change_prob = desire_state[log.Desire.laneChangeRight]
       lane_change_prob = l_lane_change_prob + r_lane_change_prob
-      previous_turn_state = DH.turn.state
-      DH.update(sm['carState'], sm['carControl'].latActive, lane_change_prob,
-                turn_inputs_valid=sm.all_checks(['carState', 'carControl']))
-      if DH.turn.state != previous_turn_state:
-        cloudlog.event("low_speed_turn_desire", state=DH.turn.state.value, direction=int(DH.turn.direction),
-                       desire=int(DH.desire), v_ego=sm['carState'].vEgo)
+      desire_frame.after(sm['carState'], sm['carControl'].latActive, lane_change_prob,
+                         sm.all_checks(['carState', 'carControl']))
       modelv2_send.modelV2.meta.laneChangeState = DH.lane_change_state
       modelv2_send.modelV2.meta.laneChangeDirection = DH.lane_change_direction
 

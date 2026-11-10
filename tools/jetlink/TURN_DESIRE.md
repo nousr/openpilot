@@ -45,11 +45,40 @@ driver steering input. An already-starting lane change retains its existing logi
 and a signal used to start a lane change cannot also request a turn until released.
 
 An existing signal can arm as the car slows below 15 mph. The helper can wait
-while stopped. Once moving, it emits **one frame** of the corresponding turn
-desire. The stock and Jetlink model runners convert that to a rising-edge pulse
-in the policy input vector: slot 1 for `turnLeft`, slot 2 for `turnRight`.
+while stopped. Once moving, it queues **one request** for the corresponding turn
+desire. The stock and Jetlink model runners convert a desire to a rising-edge
+pulse in the policy input vector: slot 1 for `turnLeft`, slot 2 for `turnRight`.
 Lane-change desires use separate slots 3 and 4 and retain the existing
 20 mph threshold and driver torque confirmation.
+
+### Delivery of the request
+
+The request is computed after one model frame and carried by the next, so the
+car state it was computed from is a frame old when it would be sent, and the
+Jetlink link can refuse a frame (a held frame). modeld therefore runs the
+request in this order, through `openpilot/selfdrive/modeld/desire_frame.py`:
+
+1. **Before the model runs**, on this frame's inputs, `presend()` checks a
+   queued request against every condition that blocks a turn. A request that is
+   no longer wanted is dropped here and is not packed. No timer moves.
+2. **The model runner says whether the frame went** (`desire_sent`). For Jetlink
+   that is the frame being handed to the link; a refused frame is not an edge the
+   host has had.
+3. **After the model ran**, `update()` runs once, as before. A request whose
+   frame went is `transmitted` and is never asked again. One whose frame did not
+   go is asked again on the next frame, for at most 4 frames and 0.3 s by the
+   clock, then dropped as `expired`.
+4. **A model change drops it.** On a swap, a hand-back or a fallback inside a
+   frame, Jetlink runs the first frame of the other model without its desire
+   and reports the handover; the helper drops the request as `model changed`.
+   A request asked of one model is never put to its replacement, whether or
+   not selfdrived's guard has disengaged yet.
+
+`low_speed_turn_desire` log events carry `delivery` (`queued`, `transmitted`,
+`dropped`), `drop_reason` and `offers`. `turn_request_trace` events carry the
+Jetlink link's account of the frame that carried the pulse: `flight` once sent,
+then `answered` when the host's output for that frame was read, or `lost`.
+`answered` means the host ran the frame, not that the policy acted on it.
 
 After a turn has armed, loss of lateral activity or input validity, a non-drive
 gear, hazards, a direction flip, the corresponding blind spot, or opposing driver
@@ -73,17 +102,17 @@ check and does not detect all cross traffic, pedestrians or cyclists.
    approach remains `armed`, moving produces one `active` transition, and release,
    hazards, disengagement and stale inputs behave as described. Use an isolated
    messaging/params prefix, as in the existing Jetlink bench.
-3. Check `low_speed_turn_desire` entries in modeld logs. They record helper state,
-   direction (1/2), desired input and speed. `active` records the pulse scheduled
-   for the next inference; it is **not** proof the remote policy received it or
-   that steering followed it. `modelV2.meta.desireState` is the model's prediction,
-   not this input signal. Lane-change metadata stays off for turns.
+3. Check `low_speed_turn_desire` and `turn_request_trace` entries in modeld
+   logs. They record helper state, direction (1/2), desired input, speed and how
+   far the request got. `transmitted` plus an `answered` trace is proof the host
+   ran a frame carrying the pulse; it is **not** proof that steering followed it.
+   `modelV2.meta.desireState` is the model's prediction, not this input signal.
+   Lane-change metadata stays off for turns.
 4. Before vehicle actuation, validate turn intent with the inherited Jetlink
-   manager integration and its timing, fallback and disconnect handling. A skipped/busy USB inference
-   can miss an intent pulse; this branch does not retry it automatically. Confirm
-   delivery in the transport/input trace as well as the helper log. After an
-   interruption, disengage and start a fresh attempt rather than relying on the
-   old turn intent carrying across a model swap.
+   manager integration and its timing, fallback and disconnect handling. A
+   request the link refuses is retried for a few frames and then dropped and
+   logged; it is never delivered late or to another model. After an
+   interruption, disengage and start a fresh attempt.
 5. For subsequent closed-course left/right trials, keep model/controller versions
    fixed, control entry speed, and log requested curvature, outgoing limited
    curvature, measured yaw/steering response, model execution time and driver
@@ -101,13 +130,18 @@ In an openpilot development environment with the pinned opendbc and Jetlink
 submodules available on the Python path:
 
 ```sh
-python -m unittest openpilot.selfdrive.controls.tests.test_turn_desire tools.jetlink.test_turn_desire_input tools.jetlink.test_adapter -v
-ruff check openpilot/selfdrive/controls/lib/turn_desire_helper.py openpilot/selfdrive/controls/lib/desire_helper.py openpilot/selfdrive/controls/tests/test_turn_desire.py tools/jetlink/test_turn_desire_input.py openpilot/selfdrive/modeld/modeld.py openpilot/selfdrive/ui/layouts/settings/toggles.py
+python -m unittest openpilot.selfdrive.controls.tests.test_turn_desire tools.jetlink.test_turn_request_delivery tools.jetlink.test_adapter tools.jetlink.test_guard -v
+ruff check openpilot/selfdrive/controls/lib/turn_desire_helper.py openpilot/selfdrive/controls/lib/desire_helper.py openpilot/selfdrive/controls/tests/test_turn_desire.py openpilot/selfdrive/modeld/desire_frame.py tools/jetlink/test_turn_request_delivery.py openpilot/selfdrive/modeld/modeld.py openpilot/selfdrive/ui/layouts/settings/toggles.py
 ```
 
-The policy-input test runs the pinned Jetlink input packer with camera/GPU/USB
-boundaries mocked. It checks the real enum encoding and edge conversion, not a
-CoreML prediction, physical USB transfer, or vehicle response.
+`test_turn_request_delivery.py` drives the object modeld's loop calls
+(`DesireFrame`) with the real `DesireHelper`, Jetlink's real joining and model
+states over its test link, and the real `JetlinkGuard`, and reads the pulses
+back from the bytes handed to the link. Its imports need Jetlink's `tests`
+package: it adds `jetlink_repo` (or `$JETLINK_REPO`) to the path itself. It does
+not run a CoreML prediction, a physical USB transfer, or a vehicle. modeld
+itself cannot be imported off a comma; a source check pins the order of its
+calls to the one the test mirrors.
 
 Local validation on November 9, 2026: all 31 tests above passed on Python 3.12,
 along with Ruff, Python compilation of modeld/settings and `git diff --check`.
@@ -123,3 +157,11 @@ pinned Jetlink revision `88a9f8969947e6c984b2766f5db531d86f840582`. Ruff,
 Python compilation (including the inherited home-screen change), diff whitespace
 checks and the inherited executable modes also passed inspection. The native
 engagement-event suite, live UI and device build were not rerun on this Mac.
+
+Request delivery, November 10, 2026 (`codex/turn-intent-ack`): the review's case
+(a request refused by the link, cancelled before the next frame, then sent on a
+retry) was reproduced against the earlier prototype and is covered here for nine
+cancel reasons in both directions, on the first send and on a retry. Removing
+the pre-send check, Jetlink's withholding of the desire on a handover, or the
+helper's drop on a model change each fails tests in this suite. Not tested: the
+device build, CoreML inference, physical USB, and any vehicle.

@@ -5,7 +5,7 @@ from openpilot.cereal import log
 from openpilot.common.constants import CV
 from openpilot.common.realtime import DT_MDL
 from openpilot.selfdrive.controls.lib.desire_helper import DesireHelper, LaneChangeState
-from openpilot.selfdrive.controls.lib.turn_desire_helper import TurnState
+from openpilot.selfdrive.controls.lib.turn_desire_helper import TURN_REQUEST_FRAMES_MAX, TurnDelivery, TurnState
 
 
 class TestTurnDesire(unittest.TestCase):
@@ -183,6 +183,111 @@ class TestTurnDesire(unittest.TestCase):
                                         leftBlindspot=left, rightBlindspot=not left), [])
           self.assertEqual(self.run_for(DT_MDL, leftBlindspot=False, rightBlindspot=False), [expected])
           self.assertEqual(self.helper.turn.state, TurnState.idle)
+
+
+class TestTurnRequest(unittest.TestCase):
+  """The request between update() queueing it and the model runner's word that
+  it went. The integration order is exercised in tools/jetlink/test_turn_request_delivery.py."""
+
+  def setUp(self):
+    self.helper = DesireHelper(turn_desire_enabled=True)
+    self.cs = CarState.new_message(vEgo=5 * CV.MPH_TO_MS, gearShifter="drive", leftBlinker=True)
+    self.now = 0.0
+
+  def update(self, sent=True, changed=False, active=True, valid=True):
+    self.now += DT_MDL
+    self.helper.update(self.cs, active, 0.0, turn_inputs_valid=valid, turn_desire_sent=sent, model_changed=changed, now=self.now)
+
+  def queue(self):
+    for _ in range(40):
+      self.update()
+      if self.helper.turn.pending:
+        return
+    self.fail("not queued")
+
+  def timers(self):
+    turn = self.helper.turn
+    return (turn.state, turn.signal_timer, turn.off_timer, turn.turn_timer, turn.lane_change_consumed,
+            self.helper.lane_change_state, self.helper.lane_change_timer, self.helper.lane_change_direction)
+
+  def test_presend_moves_no_timer(self):
+    self.queue()
+    before = self.timers()
+    for _ in range(50):
+      self.assertEqual(self.helper.presend(self.cs, True, now=self.now), log.Desire.turnLeft)
+    self.assertEqual(self.timers(), before)
+    self.assertEqual(self.helper.turn.offers, 1)
+
+  def test_presend_is_a_passthrough_without_a_queued_request(self):
+    for enabled in (False, True):
+      helper = DesireHelper(turn_desire_enabled=enabled)
+      cs = CarState.new_message(vEgo=30 * CV.MPH_TO_MS, gearShifter="drive", leftBlinker=True)
+      for _ in range(30):
+        helper.update(cs, True, 1.0)
+      cs.steeringPressed, cs.steeringTorque = True, 1.5
+      helper.update(cs, True, 1.0)
+      self.assertEqual(helper.desire, log.Desire.laneChangeLeft)
+      # nothing a turn request would be cancelled for touches a lane change's desire
+      self.assertEqual(helper.presend(cs, False, turn_inputs_valid=False, now=1e9), log.Desire.laneChangeLeft)
+      self.assertEqual(helper.lane_change_state, LaneChangeState.laneChangeStarting)
+
+  def test_asked_until_sent_then_never_again(self):
+    self.queue()
+    self.update(sent=False)
+    self.assertEqual((self.helper.desire, self.helper.turn.delivery), (log.Desire.turnLeft, TurnDelivery.queued))
+    self.update(sent=True)
+    self.assertEqual((self.helper.desire, self.helper.turn.delivery), (log.Desire.none, TurnDelivery.transmitted))
+    for _ in range(100):
+      self.update(sent=False)
+      self.assertEqual(self.helper.desire, log.Desire.none)
+
+  def test_asked_at_most_a_few_frames(self):
+    self.queue()
+    offered = 1
+    for _ in range(20):
+      self.update(sent=False)
+      offered += self.helper.desire == log.Desire.turnLeft
+    self.assertEqual(offered, TURN_REQUEST_FRAMES_MAX)
+    self.assertEqual((self.helper.turn.state, self.helper.turn.drop_reason), (TurnState.blocked, "expired"))
+
+  def test_presend_drops_on_each_reason(self):
+    cases = {
+      "signal off": {"leftBlinker": False}, "hazards": {"rightBlinker": True},
+      "direction changed": {"leftBlinker": False, "rightBlinker": True}, "blindspot": {"leftBlindspot": True},
+      "driver opposing": {"steeringPressed": True, "steeringTorque": -1.0}, "not in drive": {"gearShifter": "park"},
+      "speed": {"vEgo": 25 * CV.MPH_TO_MS},
+    }
+    for reason, changes in cases.items():
+      with self.subTest(reason=reason):
+        self.setUp()
+        self.queue()
+        for field, value in changes.items():
+          setattr(self.cs, field, value)
+        self.assertEqual(self.helper.presend(self.cs, True, now=self.now), log.Desire.none)
+        self.assertEqual((self.helper.turn.delivery, self.helper.turn.drop_reason), (TurnDelivery.dropped, reason))
+    for reason, kw in (("lateral inactive", {"lateral_active": False}), ("inputs invalid", {"turn_inputs_valid": False})):
+      with self.subTest(reason=reason):
+        self.setUp()
+        self.queue()
+        args = {"lateral_active": True, "turn_inputs_valid": True, "now": self.now} | kw
+        self.assertEqual(self.helper.presend(self.cs, **args), log.Desire.none)
+        self.assertEqual(self.helper.turn.drop_reason, reason)
+
+  def test_a_dropped_request_stays_dropped_while_the_signal_is_held(self):
+    self.queue()
+    self.helper.presend(self.cs, False, now=self.now)
+    for _ in range(200):
+      self.update()
+      self.assertEqual(self.helper.desire, log.Desire.none)
+    self.assertEqual(self.helper.turn.state, TurnState.blocked)
+
+  def test_a_model_change_drops_a_queued_request_and_only_that(self):
+    self.queue()
+    self.helper.turn_model_changed()
+    self.assertEqual((self.helper.desire, self.helper.turn.drop_reason), (log.Desire.none, "model changed"))
+    helper = DesireHelper(turn_desire_enabled=True)
+    helper.turn_model_changed()
+    self.assertEqual(helper.turn.delivery, TurnDelivery.none)
 
 
 if __name__ == '__main__':

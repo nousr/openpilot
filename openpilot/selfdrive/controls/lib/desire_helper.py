@@ -23,12 +23,30 @@ class DesireHelper:
   def get_lane_change_direction(CS):
     return LaneChangeDirection.left if CS.leftBlinker else LaneChangeDirection.right
 
-  def update(self, carstate, lateral_active, lane_change_prob, *, turn_inputs_valid=True):
+  def presend(self, carstate, lateral_active, *, turn_inputs_valid=True, now=None):
+    """The desire for the frame about to run, after a queued turn request has
+    been checked against this frame's inputs (TurnDesireHelper.presend). Lane
+    change desires pass through untouched, and no timer moves."""
+    if self.turn.pending:
+      self.turn.presend(carstate, lateral_active, turn_inputs_valid, now)
+      if not self.turn.pending:
+        self.desire = log.Desire.none
+    return self.desire
+
+  def turn_model_changed(self):
+    """The model runner was replaced with a turn request still queued."""
+    if self.turn.pending:
+      self.turn.model_changed()
+      self.desire = log.Desire.none
+
+  def update(self, carstate, lateral_active, lane_change_prob, *, turn_inputs_valid=True, turn_desire_sent=True,
+             model_changed=False, now=None):
     v_ego = carstate.vEgo
     one_blinker = carstate.leftBlinker != carstate.rightBlinker
     below_lane_change_speed = v_ego < LANE_CHANGE_SPEED_MIN
 
-    self.turn.update(carstate, lateral_active, self.lane_change_state, turn_inputs_valid)
+    self.turn.update(carstate, lateral_active, self.lane_change_state, turn_inputs_valid,
+                     desire_sent=turn_desire_sent, model_changed=model_changed, now=now)
     if self.turn.consumes_blinker:
       self.lane_change_state = LaneChangeState.off
       self.lane_change_direction = LaneChangeDirection.none
