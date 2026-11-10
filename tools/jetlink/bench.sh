@@ -5,7 +5,9 @@ cd "$(dirname "$0")/../.."
 export PYTHONPATH="$PWD"
 export JETLINK_BENCH=1
 ln -sfn jetlink_repo/jetlink jetlink
-exec /usr/local/venv/bin/python3 jetlink_repo/scripts/comma/jetlink_bench.py \
+python="$PWD/.venv/bin/python3"
+if [ ! -x "$python" ]; then python=/usr/local/venv/bin/python3; fi
+exec "$python" jetlink_repo/scripts/comma/jetlink_bench.py \
   --adapter openpilot.jetlink_adapter --modeld stock --start-owner \
   --model-sha256 87fe86ca0813c099efddf9173ba503be2e40ea4c5362c36812a44141f4cb07d4 \
   --model-name 'Chestnut Mountain Dew (stable 2026-11-09)' \

@@ -2,6 +2,11 @@
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
+# Development installs can keep their pinned dependencies on /data.
+if [ -x "$DIR/.venv/bin/python3" ]; then
+  export PATH="$DIR/.venv/bin:$PATH"
+fi
+
 source "$DIR/launch_env.sh"
 
 function agnos_init {
