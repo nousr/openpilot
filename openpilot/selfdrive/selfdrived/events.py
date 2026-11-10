@@ -418,9 +418,8 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
     ET.PERMANENT: NormalPermanentAlert("Mac Model Unavailable", "Check Mac and USB connection"),
   },
 
-  EventName.jetlinkReady: {
-    ET.PERMANENT: NormalPermanentAlert("Mac Chestnut", "Model ready", priority=Priority.LOWEST),
-  },
+  # Informational status on the home screen, not an onroad alert.
+  EventName.jetlinkReady: {},
 
   EventName.bigModelFailed: {
     ET.SOFT_DISABLE: soft_disable_alert("Big Model Failed"),

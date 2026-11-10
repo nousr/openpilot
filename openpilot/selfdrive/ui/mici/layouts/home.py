@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime
 import math
+import time
 
 from openpilot.cereal import log
 import raylib_nb as rl
@@ -12,6 +13,7 @@ from openpilot.system.ui.widgets.icon_widget import IconWidget
 from openpilot.system.ui.widgets.label import UnifiedLabel, gui_label
 from openpilot.system.ui.lib.application import gui_app, FontWeight, MousePos, TextAlignment, TextAlignmentVertical
 from openpilot.selfdrive.ui.ui_state import ui_state, ChestnutState
+from openpilot.selfdrive.selfdrived.jetlink import MAX_AGE_NS
 from openpilot.common.version import RELEASE_BRANCHES
 
 HEAD_BUTTON_FONT_SIZE = 40
@@ -29,6 +31,19 @@ NETWORK_TYPES = {
   NetworkType.cell5G: "5G",
   NetworkType.ethernet: "Ethernet",
 }
+
+
+def mac_chestnut_ready() -> bool:
+  sm = ui_state.sm
+  if not ui_state.started or not all(sm.alive[s] and sm.valid[s] and sm.recv_frame[s] > ui_state.started_frame
+                                     for s in ("modelV2", "selfdriveState", "onroadEvents")):
+    return False
+  # Read the control loop's readiness decision. Suppress an old ready event
+  # immediately if either predictions or the control loop stop arriving.
+  now = time.monotonic_ns()
+  return (0 <= now - sm.logMonoTime["selfdriveState"] < MAX_AGE_NS and
+          0 <= now - sm["modelV2"].jetlink.lastOutputMonoTime < MAX_AGE_NS and
+          any(e.name == log.OnroadEvent.EventName.jetlinkReady for e in sm["onroadEvents"]))
 
 
 class AlertsPill(Widget):
@@ -154,6 +169,7 @@ class MiciHomeLayout(Widget):
     self._date_label = UnifiedLabel("", font_size=36, text_color=rl.GRAY, font_weight=FontWeight.ROMAN, max_width=480, wrap_text=False)
     self._branch_label = UnifiedLabel("", font_size=36, text_color=rl.GRAY, font_weight=FontWeight.ROMAN, scroll=True)
     self._version_commit_label = UnifiedLabel("", font_size=36, text_color=rl.GRAY, font_weight=FontWeight.ROMAN, max_width=480, wrap_text=False)
+    self._mac_status_label = UnifiedLabel("Mac Chestnut ready", font_size=28, font_weight=FontWeight.ROMAN, max_width=480, wrap_text=False)
 
   def set_callbacks(self, on_settings: Callable | None = None, on_alerts: Callable | None = None,
                     alert_count_callback: Callable[[], int] | None = None,
@@ -195,6 +211,8 @@ class MiciHomeLayout(Widget):
     text_pos = rl.Vector2(self.rect.x - 2 + HOME_PADDING, self.rect.y - 16)
     self._openpilot_label.set_position(text_pos.x, text_pos.y)
     self._openpilot_label.render()
+    status_x = text_pos.x
+    details_y = text_pos.y + self._openpilot_label.font_size + 16 + self._date_label.font_size + 7
 
     if self._version_text is not None:
       # release branch
@@ -218,6 +236,12 @@ class MiciHomeLayout(Widget):
         self._version_commit_label.set_text(self._version_text[2])
         self._version_commit_label.set_position(version_pos.x, version_pos.y + self._date_label.font_size + 7)
         self._version_commit_label.render()
+        status_x += self._version_commit_label.text_width + 16
+
+    if mac_chestnut_ready():
+      self._mac_status_label.set_max_width(int(self.rect.x + self.rect.width - HOME_PADDING - status_x))
+      self._mac_status_label.set_position(status_x, details_y + 4)
+      self._mac_status_label.render()
 
     # ***** Center-aligned bottom section icons *****
     usb_connected = ui_state.usb_connected
