@@ -84,10 +84,16 @@ class TurnDesireHelper:
       self._drop(reason)
 
   def model_changed(self):
-    """The model that would have run the request was replaced before it took
-    it. The replacement never heard the question; do not ask it."""
+    """Another model took the drive over. A request the old one had not
+    taken is dropped, and a turn still arming is blocked: the signal the
+    request would come from was given to the model that is gone, so the
+    replacement is not asked for that signal at all. A signal given after
+    the change arms afresh. A request already transmitted is left as it is."""
     if self.pending:
       self._drop("model changed")
+    elif self.state == TurnState.armed:
+      self.state = TurnState.blocked
+      self.drop_reason = "model changed"
 
   def update(self, CS, lateral_active, lane_change_state, inputs_valid=True, *, desire_sent=True, model_changed=False, now=None):
     """Once per model frame, after the model ran. `desire_sent` is the model
@@ -101,6 +107,21 @@ class TurnDesireHelper:
     was_pending, before = self.pending, self.state
     self._step(CS, lateral_active, lane_change_state, inputs_valid)
 
+    if was_pending and desire_sent:
+      # The frame that just ran carried it, to the model that was driving.
+      self.pending, self.delivery = False, TurnDelivery.transmitted
+      return
+
+    if model_changed:
+      # Before anything is queued or asked again: the frame on which another
+      # model took over creates no request and keeps none (model_changed()).
+      if was_pending:
+        self._drop("model changed", block=self.state == TurnState.active)
+      elif self.state == TurnState.armed or (before == TurnState.armed and self.state == TurnState.active):
+        self.state = TurnState.blocked
+        self.drop_reason = "model changed"
+      return
+
     if before == TurnState.armed and self.state == TurnState.active:
       # Queued: the next model frame is offered it. presend() checks it again
       # on that frame's inputs before it is packed.
@@ -111,13 +132,9 @@ class TurnDesireHelper:
     if not was_pending:
       return
 
-    # A request was offered to the frame that just ran.
+    # A request was offered to the frame that just ran, and did not go.
     if self.state != TurnState.active:
       self._drop("cancelled", block=False)   # one of the rules above ended it
-    elif desire_sent:
-      self.pending, self.delivery = False, TurnDelivery.transmitted
-    elif model_changed:
-      self._drop("model changed")
     elif self.offers >= TURN_REQUEST_FRAMES_MAX or self._now(now) - self.queued_at > TURN_REQUEST_AGE_MAX:
       self._drop("expired")
     else:

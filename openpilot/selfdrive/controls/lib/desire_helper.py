@@ -34,10 +34,12 @@ class DesireHelper:
     return self.desire
 
   def turn_model_changed(self):
-    """The model runner was replaced with a turn request still queued."""
+    """The model runner was replaced. A turn request still queued is dropped
+    and a turn still arming is blocked (TurnDesireHelper.model_changed);
+    a lane change's desire is not touched."""
     if self.turn.pending:
-      self.turn.model_changed()
       self.desire = log.Desire.none
+    self.turn.model_changed()
 
   def update(self, carstate, lateral_active, lane_change_prob, *, turn_inputs_valid=True, turn_desire_sent=True,
              model_changed=False, now=None):

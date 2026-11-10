@@ -390,6 +390,69 @@ class TestOverJetlink(Base):
         self.assertEqual(self.small.pulses, [], 'the signal is still on, the replacement is not asked')
         self.assertEqual(len(self.sent()), 1)
 
+  def frames_to_queue(self):
+    """How many frames of a held signal it takes for the request to be queued."""
+    loop = self.joined()
+    for n in range(1, 40):
+      loop.step(car())
+      if loop.DH.turn.pending:
+        return n
+    raise AssertionError("no turn request was queued")
+
+  def test_the_model_changes_while_the_turn_is_arming_and_the_new_one_is_never_asked(self):
+    # The request does not exist yet when the model changes: it is created by the same update() that hears of the
+    # change (offset 0), or a few frames later with the signal still held. Either way it would be a request the
+    # replacement was never driving for. selfdrived's fault may arrive late or not at all.
+    queue_at = self.frames_to_queue()
+    for offset in (0, 1, 3, queue_at - 1):
+      for kind in ('fallback in the frame', 'handed back for lag'):
+        for latency in self.GUARD:
+          with self.subTest(frames_before_queue=offset, kind=kind, guard_latency=latency):
+            self.setUp()
+            loop = self.joined(latency)
+            loop.run(car(), queue_at - 1 - offset)
+            self.assertEqual((loop.DH.turn.pending, loop.DH.turn.state), (False, TurnState.armed if queue_at - 1 - offset else TurnState.idle))
+            if kind == 'fallback in the frame':
+              with mock.patch.object(self.client, 'infer_begin', side_effect=RuntimeError('link gone')):
+                loop.step(car())
+            else:
+              with mock.patch.object(JetlinkModelState, '_note_hold', lambda state, held: 'held 5 frames in a row'):
+                loop.step(car())
+            self.assertFalse(loop.DH.turn.pending, 'no request is created on the frame the model changes')
+            loop.run(car(), 60)
+            self.assertFalse(loop.model.chestnut)
+            self.assertEqual(self.small.pulses, [], 'the replacement is not asked')
+            self.assertEqual(self.sent(), [])
+            if latency is None:    # with the guard out of the picture, the turn logic alone said no, and why
+              self.assertEqual((loop.DH.turn.state, loop.DH.turn.drop_reason), (TurnState.blocked, 'model changed'))
+
+  def test_modelds_own_fallback_while_the_turn_is_arming(self):
+    queue_at = self.frames_to_queue()
+    for offset in (0, 1, 3):
+      with self.subTest(frames_before_queue=offset):
+        self.setUp()
+        big = self.big()
+        big.chestnut = True
+        loop = Loop(self, big, guard_latency=None)
+        loop.failed_model = self.small
+        loop.run(car(), queue_at - 1 - offset)
+        self.assertEqual(loop.DH.turn.state, TurnState.armed)
+        with mock.patch.object(self.client, 'infer_begin', side_effect=RuntimeError('big model failed')):
+          loop.step(car())
+        self.assertIs(loop.model, self.small)
+        loop.run(car(), 60)
+        self.assertEqual(self.small.pulses, [])
+        self.assertEqual((loop.DH.turn.state, loop.DH.turn.drop_reason), (TurnState.blocked, 'model changed'))
+
+  def test_a_signal_given_after_the_model_changed_is_a_request_of_the_new_model(self):
+    # not a stale request: the driver signals with the replacement already driving and lateral still active
+    loop = self.joined(None)
+    with mock.patch.object(self.client, 'infer_begin', side_effect=RuntimeError('link gone')):
+      loop.step(CarState.new_message(vEgo=2.0, gearShifter="drive"))
+    loop.run(CarState.new_message(vEgo=2.0, gearShifter="drive"), 5)
+    loop.run(car(), 60)
+    self.assertEqual(self.small.pulses, [LEFT])
+
   def test_modelds_own_fallback_drops_a_queued_request(self):
     # a chestnut's failure: model.run raises out of modeld's try and modeld swaps the model itself
     big = self.big()

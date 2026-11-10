@@ -72,7 +72,10 @@ request in this order, through `openpilot/selfdrive/modeld/desire_frame.py`:
    frame, Jetlink runs the first frame of the other model without its desire
    and reports the handover; the helper drops the request as `model changed`.
    A request asked of one model is never put to its replacement, whether or
-   not selfdrived's guard has disengaged yet.
+   not selfdrived's guard has disengaged yet. The same holds before the
+   request exists: a model change while the turn is still arming, including
+   on the frame that would have queued it, blocks that held signal. A signal
+   given after the change is a new request of the model then driving.
 
 `low_speed_turn_desire` log events carry `delivery` (`queued`, `transmitted`,
 `dropped`), `drop_reason` and `offers`. `turn_request_trace` events carry the

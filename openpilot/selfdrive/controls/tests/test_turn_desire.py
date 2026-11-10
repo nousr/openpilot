@@ -281,13 +281,73 @@ class TestTurnRequest(unittest.TestCase):
       self.assertEqual(self.helper.desire, log.Desire.none)
     self.assertEqual(self.helper.turn.state, TurnState.blocked)
 
-  def test_a_model_change_drops_a_queued_request_and_only_that(self):
+  def test_a_model_change_drops_a_queued_request(self):
     self.queue()
     self.helper.turn_model_changed()
     self.assertEqual((self.helper.desire, self.helper.turn.drop_reason), (log.Desire.none, "model changed"))
     helper = DesireHelper(turn_desire_enabled=True)
     helper.turn_model_changed()
-    self.assertEqual(helper.turn.delivery, TurnDelivery.none)
+    self.assertEqual((helper.turn.delivery, helper.turn.state), (TurnDelivery.none, TurnState.idle))
+
+  def test_a_model_change_while_arming_blocks_that_signal(self):
+    for how in ("update", "direct"):
+      with self.subTest(how=how):
+        self.setUp()
+        self.update()
+        self.update()
+        self.assertEqual(self.helper.turn.state, TurnState.armed)
+        if how == "update":
+          self.update(changed=True)
+        else:
+          self.helper.turn_model_changed()
+        self.assertEqual((self.helper.turn.state, self.helper.turn.drop_reason, self.helper.turn.pending), (TurnState.blocked, "model changed", False))
+        for _ in range(200):
+          self.update()
+          self.assertEqual(self.helper.desire, log.Desire.none)
+        # released and given again, it is a new signal to the model now driving
+        self.cs.leftBlinker = False
+        for _ in range(15):
+          self.update()
+        self.cs.leftBlinker = True
+        self.queue()
+
+  def test_the_update_that_would_queue_does_not_on_a_model_change(self):
+    for _ in range(40):
+      before = self.helper.turn.signal_timer
+      self.update()
+      if self.helper.turn.pending:
+        break
+    frames = round(before / DT_MDL) + 1          # updates from the signal to the queueing one
+    self.setUp()
+    for _ in range(frames - 1):
+      self.update()
+    self.assertEqual((self.helper.turn.state, self.helper.turn.pending), (TurnState.armed, False))
+    self.update(changed=True)                    # this update would have queued it
+    self.assertEqual((self.helper.turn.pending, self.helper.desire, self.helper.turn.state), (False, log.Desire.none, TurnState.blocked))
+
+  def test_a_model_change_after_the_request_went_changes_nothing(self):
+    self.queue()
+    self.update(sent=True)
+    self.update(changed=True)
+    self.helper.turn_model_changed()
+    self.assertEqual((self.helper.turn.state, self.helper.turn.delivery), (TurnState.active, TurnDelivery.transmitted))
+
+  def test_sent_on_the_frame_the_model_changed_is_transmitted_not_asked_again(self):
+    # the old model took the frame and that frame was its last (a lag hand-back)
+    self.queue()
+    self.update(sent=True, changed=True)
+    self.assertEqual((self.helper.turn.delivery, self.helper.turn.pending, self.helper.desire), (TurnDelivery.transmitted, False, log.Desire.none))
+
+  def test_a_lane_change_desire_survives_a_model_change(self):
+    helper = DesireHelper(turn_desire_enabled=True)
+    cs = CarState.new_message(vEgo=30 * CV.MPH_TO_MS, gearShifter="drive", leftBlinker=True)
+    for _ in range(30):
+      helper.update(cs, True, 1.0)
+    cs.steeringPressed, cs.steeringTorque = True, 1.5
+    helper.update(cs, True, 1.0)
+    helper.turn_model_changed()
+    helper.update(cs, True, 1.0, model_changed=True)
+    self.assertEqual((helper.desire, helper.lane_change_state), (log.Desire.laneChangeLeft, LaneChangeState.laneChangeStarting))
 
 
 if __name__ == '__main__':
