@@ -421,6 +421,15 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
   # Informational status on the home screen, not an onroad alert.
   EventName.jetlinkReady: {},
 
+  # shown for a few seconds after entering steering only (selfdrived/lateral_only.py)
+  EventName.steeringOnly: {
+    ET.WARNING: Alert(
+      "Steering Only",
+      "You control speed. Brake does not disengage.",
+      AlertStatus.normal, AlertSize.mid,
+      Priority.LOW, VisualAlert.none, AudibleAlert.none, .2),
+  },
+
   EventName.bigModelFailed: {
     ET.SOFT_DISABLE: soft_disable_alert("Big Model Failed"),
     ET.PERMANENT: NormalPermanentAlert("Big Model Failed ", "Restart the car to retry,\nsmall model is still available", duration=20.),

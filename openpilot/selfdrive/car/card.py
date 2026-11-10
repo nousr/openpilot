@@ -18,6 +18,7 @@ from opendbc.car.carlog import carlog
 from opendbc.car.fw_versions import ObdCallback
 from opendbc.car.car_helpers import get_car, interfaces
 from openpilot.selfdrive.car import ford_path_angle
+from openpilot.selfdrive.selfdrived import lateral_only
 from opendbc.car.interfaces import CarInterfaceBase, RadarInterfaceBase
 from openpilot.selfdrive.pandad import can_capnp_to_list, can_list_to_can_capnp
 from openpilot.selfdrive.car.cruise import VCruiseHelper
@@ -115,8 +116,10 @@ class Car:
     self.CP.passive = not controller_available or self.CP.dashcamOnly
     # Ford low-speed path angle test: only if FordPathAngleTest was set for this drive. Before CarParams is written,
     # so the safety param panda is given matches what the controller may send.
+    # Lateral-only engagement, the same way: only on the owner's setting (FordLateralOnly, off by default).
     if controller_available:
       ford_path_angle.setup(self.params, self.CP, self.CI.CC, cloudlog.event)
+      lateral_only.setup(self.params, self.CP, cloudlog.event)
     self.ford_path_angle_log = ford_path_angle.StageLog(self.CI.CC, cloudlog.event)
     if self.CP.passive:
       safety_config = structs.CarParams.SafetyConfig()

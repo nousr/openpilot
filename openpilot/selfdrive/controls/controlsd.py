@@ -12,6 +12,7 @@ from openpilot.common.swaglog import cloudlog
 
 from opendbc.car.car_helpers import interfaces
 from opendbc.car.vehicle_model import VehicleModel
+from openpilot.selfdrive.selfdrived import lateral_only
 from openpilot.selfdrive.controls.lib.drive_helpers import clip_curvature
 from openpilot.selfdrive.controls.lib.latcontrol import LatControl
 from openpilot.selfdrive.controls.lib.latcontrol_pid import LatControlPID
@@ -70,6 +71,12 @@ class Controls:
       device_motion = Pose.from_device_motion(self.sm['deviceMotion'])
       self.calibrated_pose = self.pose_calibrator.build_calibrated_pose(device_motion)
 
+  def cruise_control(self, CC, CS):
+    """(longActive, cruise override, cancel, resume) for this frame; see lateral_only.cruise_control."""
+    return lateral_only.cruise_control(
+      CC.enabled, self.sm['selfdriveState'].lateralOnly, any(e.overrideLongitudinal for e in self.sm['onroadEvents']),
+      CS.cruiseState.enabled, CS.cruiseState.standstill, self.sm['longitudinalPlan'].shouldStop, self.CP)
+
   def state_control(self):
     CS = self.sm['carState']
 
@@ -99,7 +106,8 @@ class Controls:
     standstill = abs(CS.vEgo) <= max(self.CP.minSteerSpeed, 0.3) or CS.standstill
     CC.latActive = self.sm['selfdriveState'].active and not CS.steerFaultTemporary and not CS.steerFaultPermanent and \
                    (not standstill or self.CP.steerAtStandstill)
-    CC.longActive = CC.enabled and not any(e.overrideLongitudinal for e in self.sm['onroadEvents']) and self.CP.openpilotLongitudinalControl
+    # steering only (selfdriveState.lateralOnly): no longitudinal control, and an engaged ACC is cancelled
+    CC.longActive = self.cruise_control(CC, CS)[0]
 
     actuators = CC.actuators
     actuators.longControlState = self.LoC.long_control_state
@@ -158,9 +166,7 @@ class Controls:
       CC.orientationNED = self.calibrated_pose.orientation.xyz.tolist()
       CC.angularVelocity = self.calibrated_pose.angular_velocity.xyz.tolist()
 
-    CC.cruiseControl.override = CC.enabled and not CC.longActive and self.CP.openpilotLongitudinalControl
-    CC.cruiseControl.cancel = CS.cruiseState.enabled and (not CC.enabled or not self.CP.pcmCruise)
-    CC.cruiseControl.resume = CC.enabled and CS.cruiseState.standstill and not self.sm['longitudinalPlan'].shouldStop
+    _, CC.cruiseControl.override, CC.cruiseControl.cancel, CC.cruiseControl.resume = self.cruise_control(CC, CS)
 
     hudControl = CC.hudControl
     hudControl.setSpeed = float(CS.vCruiseCluster * CV.KPH_TO_MS)

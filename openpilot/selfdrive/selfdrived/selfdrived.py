@@ -27,6 +27,7 @@ from openpilot.common.version import get_build_metadata
 from openpilot.common.hardware import HARDWARE
 from openpilot import jetlink_adapter
 from openpilot.selfdrive.selfdrived.jetlink import JetlinkGuard, add_events as add_jetlink_events
+from openpilot.selfdrive.selfdrived.lateral_only import LateralOnly
 
 REPLAY = "REPLAY" in os.environ
 SIMULATION = "SIMULATION" in os.environ
@@ -63,6 +64,7 @@ class SelfdriveD:
       self.CP = CP
 
     self.car_events = CarEvents(self.CP)
+    self.lateral_only = LateralOnly(self.CP)
 
     self.pose_calibrator = PoseCalibrator()
     self.calibrated_pose: Pose | None = None
@@ -476,11 +478,16 @@ class SelfdriveD:
         self.events.add(EventName.modeldLagging)
 
     # Decrement personality on distance button press
-    if self.CP.openpilotLongitudinalControl:
+    # (not in steering only: there is no longitudinal control to personalize, and the button may be a test's)
+    if self.CP.openpilotLongitudinalControl and not self.lateral_only.on:
       if any(not be.pressed and be.type == ButtonType.gapAdjustCruise for be in CS.buttonEvents):
         self.personality = (self.personality - 1) % 3
         self.params.put('LongitudinalPersonality', self.personality)
         self.events.add(EventName.personalityChanged)
+
+    # Last: lateral-only reads and edits the events of this frame
+    self.lateral_only.update_events(CS, self.events, self.enabled, sum(ps.safetyTxBlocked for ps in self.sm['pandaStates']),
+                                    self.sm.frame * DT_CTRL)
 
   def data_sample(self):
     _car_state = messaging.recv_one(self.car_state_sock)
@@ -522,10 +529,14 @@ class SelfdriveD:
     if not self.enabled:
       self.mismatch_counter = 0
 
-    # All pandas not in silent mode must have controlsAllowed when openpilot is enabled
-    if self.enabled and any(not ps.controlsAllowed for ps in self.sm['pandaStates']
+    # All pandas not in silent mode must have controlsAllowed when openpilot is enabled.
+    # Steering only is the exception: there panda's controls_allowed is false by design, and LateralOnly checks
+    # agreement by the messages panda refuses.
+    if self.enabled and not self.lateral_only.on and any(not ps.controlsAllowed for ps in self.sm['pandaStates']
            if ps.safetyModel not in IGNORED_SAFETY_MODES):
       self.mismatch_counter += 1
+    elif self.lateral_only.on:
+      self.mismatch_counter = 0
 
     return CS
 
@@ -551,6 +562,7 @@ class SelfdriveD:
     ss.active = self.active
     ss.state = self.state_machine.state
     ss.engageable = not self.events.contains(ET.NO_ENTRY)
+    ss.lateralOnly = self.enabled and self.lateral_only.on
     ss.personality = self.personality
 
     ss.alertText1 = self.AM.current_alert.alert_text_1
@@ -576,6 +588,11 @@ class SelfdriveD:
     self.update_events(CS)
     if not self.CP.passive and self.initialized:
       self.enabled, self.active = self.state_machine.update(self.events)
+      was = self.lateral_only.on
+      self.lateral_only.update_state(self.enabled, self.sm.frame * DT_CTRL)
+      if self.lateral_only.on != was:
+        cloudlog.event("lateral_only", on=self.lateral_only.on, state=str(self.state_machine.state), events=list(self.events.names),
+                       v_ego=CS.vEgo, brake=CS.brakePressed)
     self.update_alerts(CS)
 
     self.publish_selfdriveState(CS)
