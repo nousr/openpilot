@@ -1,0 +1,346 @@
+{
+  "date": "2026-11-09",
+  "scope": "Parked, isolated camera/model inference; no vehicle-control processes started by the bench",
+  "hardware": {
+    "comma": "comma four",
+    "power": "Separate comma supply; Mac on AC",
+    "host": "MacBook Pro M3 Max, 64 GB"
+  },
+  "source": {
+    "device_base_release": "f7db927c728bab57bb1263e05465766a8f28fc9d",
+    "jetlink_commit": "8bfad5b14699928ce175ea852a7818ead28a48f4",
+    "boot_checkout_modified": false,
+    "openpilot_integration_commit": "5860adb14c8b8880fd5dde3c6eaccd52aeacce59",
+    "device_runtime": "Separate release copy with the adapter, model-loop overlay and rebuilt params library"
+  },
+  "model": {
+    "sha256": "87fe86ca0813c099efddf9173ba503be2e40ea4c5362c36812a44141f4cb07d4",
+    "runtime": "ONNX Runtime 1.29.0, CoreML CPUAndNeuralEngine then CPUAndGPU",
+    "name": "Chestnut Mountain Dew"
+  },
+  "transport": {
+    "replacement_cable": "USB 3 super-speed",
+    "host_and_device_agreed": true,
+    "first_cable": "USB 2 high-speed"
+  },
+  "tests": {
+    "adapter_tests_on_mac_and_comma": 6,
+    "skipped_on_mac": 2,
+    "jetlink_python_tests": 659,
+    "params_library_build": "passed on staged comma runtime",
+    "lint": "passed",
+    "subtests": 198
+  },
+  "runs": {
+    "host_stop_restart_usb2": {
+      "raw_summary": {
+        "interrupted": false,
+        "all": {
+          "frames": 1903,
+          "exec_p50_p99_p999_max_ms": [
+            36.90984100103378,
+            39.5947141200304,
+            48.01428714394752,
+            556.6859245300293
+          ],
+          "over_50ms": 2,
+          "max_drop_pct": 0.0,
+          "lagging_frames": 0,
+          "invalid_frames": 1,
+          "states": [
+            "joining",
+            "retrying",
+            "running"
+          ]
+        },
+        "big": {
+          "frames": 1484,
+          "exec_p50_p99_p999_max_ms": [
+            37.267087027430534,
+            39.68306198716164,
+            46.99254798144103,
+            56.98392912745476
+          ],
+          "over_50ms": 1,
+          "max_drop_pct": 0.0,
+          "lagging_frames": 0,
+          "invalid_frames": 0,
+          "states": [
+            "joining",
+            "retrying",
+            "running"
+          ]
+        },
+        "small": {
+          "frames": 419,
+          "exec_p50_p99_p999_max_ms": [
+            26.637276634573936,
+            27.08421029150486,
+            338.4436750337745,
+            556.6859245300293
+          ],
+          "over_50ms": 1,
+          "max_drop_pct": 0.0,
+          "lagging_frames": 0,
+          "invalid_frames": 1,
+          "states": [
+            "joining",
+            "retrying",
+            "running"
+          ]
+        }
+      },
+      "model_segments": [
+        {
+          "big": false,
+          "start_s": 4.855613636999976,
+          "end_s": 4.910657699000012,
+          "frames": 3
+        },
+        {
+          "big": true,
+          "start_s": 4.970746684000005,
+          "end_s": 16.650725642999987,
+          "frames": 235
+        },
+        {
+          "big": false,
+          "start_s": 16.730704092999986,
+          "end_s": 37.50094502000002,
+          "frames": 416
+        },
+        {
+          "big": true,
+          "start_s": 37.561082641999974,
+          "end_s": 99.972193828,
+          "frames": 1249
+        }
+      ],
+      "big_all": {
+        "frames": 1484,
+        "p50_p99_max_ms": [
+          37.267087027430534,
+          39.68306198716164,
+          56.98392912745476
+        ],
+        "over_50ms": 1,
+        "invalid_frames": 0,
+        "max_reported_drop_pct": 0.0
+      },
+      "big_excluding_first_10": {
+        "frames": 1474,
+        "p50_p99_max_ms": [
+          37.263475358486176,
+          39.60163976997137,
+          47.039758414030075
+        ],
+        "over_50ms": 0,
+        "invalid_frames": 0,
+        "max_reported_drop_pct": 0.0
+      },
+      "note": "Execution time includes comma warp, USB and Mac inference. Initial small-model startup is retained in raw_summary. The first ten big-model frames are excluded only in the explicitly labelled steady-state statistic; recovery runs retain any later transitions. Reported drops are modeld-filtered, not an independent frame-loss audit."
+    },
+    "usb3": {
+      "raw_summary": {
+        "interrupted": false,
+        "all": {
+          "frames": 3452,
+          "exec_p50_p99_p999_max_ms": [
+            28.952077962458134,
+            31.19032857939601,
+            32.85486814752239,
+            565.2418732643127
+          ],
+          "over_50ms": 2,
+          "max_drop_pct": 0.0,
+          "lagging_frames": 0,
+          "invalid_frames": 1,
+          "states": [
+            "joining",
+            "running"
+          ]
+        },
+        "big": {
+          "frames": 3449,
+          "exec_p50_p99_p999_max_ms": [
+            28.952205553650856,
+            31.18793696165085,
+            32.545262843370544,
+            51.9736222922802
+          ],
+          "over_50ms": 1,
+          "max_drop_pct": 0.0,
+          "lagging_frames": 0,
+          "invalid_frames": 0,
+          "states": [
+            "joining",
+            "running"
+          ]
+        },
+        "small": {
+          "frames": 3,
+          "exec_p50_p99_p999_max_ms": [
+            27.02159434556961,
+            554.4774676859379,
+            564.1654327064754,
+            565.2418732643127
+          ],
+          "over_50ms": 1,
+          "max_drop_pct": 0.0,
+          "lagging_frames": 0,
+          "invalid_frames": 1,
+          "states": [
+            "joining"
+          ]
+        }
+      },
+      "model_segments": [
+        {
+          "big": false,
+          "start_s": 7.458401121999998,
+          "end_s": 7.5127206700000215,
+          "frames": 3
+        },
+        {
+          "big": true,
+          "start_s": 7.570796867000013,
+          "end_s": 179.95063111899998,
+          "frames": 3449
+        }
+      ],
+      "big_all": {
+        "frames": 3449,
+        "p50_p99_max_ms": [
+          28.952205553650856,
+          31.18793696165085,
+          51.9736222922802
+        ],
+        "over_50ms": 1,
+        "invalid_frames": 0,
+        "max_reported_drop_pct": 0.0
+      },
+      "big_excluding_first_10": {
+        "frames": 3439,
+        "p50_p99_max_ms": [
+          28.95195037126541,
+          31.17754377424717,
+          37.53632307052612
+        ],
+        "over_50ms": 0,
+        "invalid_frames": 0,
+        "max_reported_drop_pct": 0.0
+      },
+      "note": "Execution time includes comma warp, USB and Mac inference. Initial small-model startup is retained in raw_summary. The first ten big-model frames are excluded only in the explicitly labelled steady-state statistic; recovery runs retain any later transitions. Reported drops are modeld-filtered, not an independent frame-loss audit."
+    },
+    "usb2": {
+      "raw_summary": {
+        "interrupted": false,
+        "all": {
+          "frames": 3386,
+          "exec_p50_p99_p999_max_ms": [
+            37.96983323991299,
+            40.0307547301054,
+            40.76327899470926,
+            555.0700426101685
+          ],
+          "over_50ms": 2,
+          "max_drop_pct": 0.0,
+          "lagging_frames": 0,
+          "invalid_frames": 1,
+          "states": [
+            "joining",
+            "running"
+          ]
+        },
+        "big": {
+          "frames": 3383,
+          "exec_p50_p99_p999_max_ms": [
+            37.97050938010216,
+            40.026625990867615,
+            40.684965118765895,
+            63.090912997722626
+          ],
+          "over_50ms": 1,
+          "max_drop_pct": 0.0,
+          "lagging_frames": 0,
+          "invalid_frames": 0,
+          "states": [
+            "joining",
+            "running"
+          ]
+        },
+        "small": {
+          "frames": 3,
+          "exec_p50_p99_p999_max_ms": [
+            26.79610252380371,
+            544.5045638084412,
+            554.0134947299958,
+            555.0700426101685
+          ],
+          "over_50ms": 1,
+          "max_drop_pct": 0.0,
+          "lagging_frames": 0,
+          "invalid_frames": 1,
+          "states": [
+            "joining"
+          ]
+        }
+      },
+      "model_segments": [
+        {
+          "big": false,
+          "start_s": 10.805834356999995,
+          "end_s": 10.860831804,
+          "frames": 3
+        },
+        {
+          "big": true,
+          "start_s": 10.920702453999994,
+          "end_s": 179.99089239899996,
+          "frames": 3383
+        }
+      ],
+      "big_all": {
+        "frames": 3383,
+        "p50_p99_max_ms": [
+          37.97050938010216,
+          40.026625990867615,
+          63.090912997722626
+        ],
+        "over_50ms": 1,
+        "invalid_frames": 0,
+        "max_reported_drop_pct": 0.0
+      },
+      "big_excluding_first_10": {
+        "frames": 3373,
+        "p50_p99_max_ms": [
+          37.97329217195511,
+          40.022452771663666,
+          40.77417775988579
+        ],
+        "over_50ms": 0,
+        "invalid_frames": 0,
+        "max_reported_drop_pct": 0.0
+      },
+      "note": "Execution time includes comma warp, USB and Mac inference. Initial small-model startup is retained in raw_summary. The first ten big-model frames are excluded only in the explicitly labelled steady-state statistic; recovery runs retain any later transitions. Reported drops are modeld-filtered, not an independent frame-loss audit."
+    }
+  },
+  "host_stop_restart": {
+    "observed": "Large model -> local small model -> large model, with continued predictions",
+    "stopped_utc": "2026-11-10T01:13:48Z",
+    "logged_fallback_frame_ms": 34,
+    "method": "SIGTERM to the Mac server, then restart about 21 seconds later; physical cable remained attached",
+    "restarted_utc": "2026-11-10T01:14:09Z"
+  },
+  "limitations": [
+    "Three-minute runs include startup and do not establish long-term thermal reliability.",
+    "No recording or driver-monitoring workload in these runs.",
+    "Execution time is model.run time, not camera exposure-to-actuation latency.",
+    "A host process stop was tested on USB 2; USB 3 cable removal and stalled-host cases remain.",
+    "Not a complete development-branch build or driving validation."
+  ],
+  "artifact_notes": [
+    "The initial local-model baseline completed, but its persisted CSV/summary contained NUL bytes after a device restart. It is excluded from derived results. Successful USB run artifacts parsed completely."
+  ],
+  "cleanup": "Bench child processes and temporary Mac server stopped; comma remains offroad"
+}

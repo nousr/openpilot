@@ -97,9 +97,22 @@ Hardware evidence belongs in `bench-results.json` beside this document.
 Frame CSV, owner/modeld logs and resource samples remain in the experiment
 directories on the comma and Mac.
 
-Before any driving integration: validate a complete fork build; measure
-USB 3 negotiation and sustained latency under recording/driver-monitoring
-load; compare recorded-route outputs; test cable removal, stalled host and
+The three-minute USB 3 run published 3,449 large-model frames. Excluding the
+first ten large-model frames, execution time was 28.95 ms median, 31.18 ms
+p99 and 37.54 ms maximum, with zero frames over 50 ms. The first large-model
+frame took 51.97 ms; local-model cold startup also has a separate spike.
+USB 2 measured 37.97 ms median and 40.02 ms p99 after the same exclusion.
+Replacing the cable changed both endpoints from USB 2 to USB 3.
+
+A separate USB 2 test stopped the Mac server with SIGTERM, left it stopped
+for about 21 seconds, then restarted it. Predictions switched to the local
+model and back to the large model. This tests host process recovery, not a
+physical cable pull or an indefinitely stalled host. Bench processes and
+the temporary Mac server were stopped after testing.
+
+Before any driving integration: validate a complete fork build; extend
+USB 3 testing to sustained recording/driver-monitoring load; compare
+recorded-route outputs; test cable removal, stalled host and
 recovery; then implement manager ownership, UI/status, shutdown and model
 transition handling. This bench does not qualify vehicle actuation or
 closed-course driving.
