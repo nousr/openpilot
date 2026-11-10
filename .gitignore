@@ -97,3 +97,5 @@ build/
 .context/
 PLAN.md
 TASK.md
+/jetlink
+/.jetlink-models/
