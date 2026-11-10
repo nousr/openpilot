@@ -98,12 +98,15 @@ class Rig:
     self.blocked = 0
     self.log = []
 
-  def step(self, press=False, release=False, brake=False, gas=False, cruise=False, available=True, standstill=False, extra=(), blocked=0):
+  def step(self, press=False, release=False, brake=False, gas=False, cruise=False, available=True, standstill=False, extra=(), blocked=0,
+           cancel=False, cancel_release=False):
     self.frame += 1
     t = self.frame * DT
     self.blocked += blocked
     buttons = [SimpleNamespace(type=ButtonType.lkas, pressed=True)] if press else []
     buttons += [SimpleNamespace(type=ButtonType.lkas, pressed=False)] if release else []
+    buttons += [SimpleNamespace(type=ButtonType.cancel, pressed=True)] if cancel else []
+    buttons += [SimpleNamespace(type=ButtonType.cancel, pressed=False)] if cancel_release else []
     CS = SimpleNamespace(buttonEvents=buttons)
     self.events.clear()
     # CarEvents
@@ -184,6 +187,39 @@ class TestLateralOnly(unittest.TestCase):
     self.assertEqual(self.rig.state, (True, False))
     self.rig.step(cruise=True, brake=True)
     self.assertEqual(self.rig.state, (False, False))
+
+  def test_the_cancel_button_ends_it(self):
+    self.enter()
+    self.rig.step(cancel=True)
+    self.assertEqual(self.rig.state, (False, False))
+    self.rig.run(20)
+    self.assertEqual(self.rig.state, (False, False))
+    self.rig.step(cancel_release=True)
+    self.enter()                               # and the next press engages again
+
+  def test_cancel_with_a_lane_centering_press_in_the_same_frame_asks_for_nothing(self):
+    seen = self.rig.step(press=True, cancel=True)
+    self.assertEqual(self.rig.state, (False, False))
+    self.assertNotIn(EventName.buttonEnable, seen)
+    self.rig.step(release=True, cancel_release=True)
+    self.enter()
+    self.rig.step(press=True, cancel=True)
+    self.assertEqual(self.rig.state, (False, False))
+
+  def test_a_lane_centering_press_with_cancel_still_held_asks_for_nothing(self):
+    self.enter()
+    self.rig.step(cancel=True)
+    self.rig.run(3)
+    seen = self.rig.step(press=True)           # cancel is still down
+    self.assertNotIn(EventName.buttonEnable, seen)
+    self.assertEqual(self.rig.state, (False, False))
+    self.rig.step(cancel_release=True)
+    self.rig.step(release=True)
+    self.enter()
+
+  def test_cancel_while_not_engaged_adds_nothing(self):
+    seen = self.rig.step(cancel=True)
+    self.assertNotIn(EventName.buttonCancel, seen)
 
   def test_a_release_is_not_a_press(self):
     self.rig.step(release=True)

@@ -6,6 +6,7 @@ What the driver does
                            except a pressed pedal.
     steering only       -> disengaged.
     engaged with ACC    -> steering only: ACC is cancelled, steering carries on.
+  The cancel button also ends steering only, and so does switching cruise off.
   In steering only, the brake and the accelerator do not disengage, and openpilot commands no acceleration or
   braking. If ACC becomes engaged it is cancelled; to drive with ACC, press the button off and set cruise as usual.
   Everything else ends it exactly as it ends a normal engagement: cruise switched off, a door, the belt, the gear,
@@ -19,10 +20,17 @@ How it is built
   (pedalPressed, pcmDisable), and watches panda.
 
 Panda
-  Panda reads the same button off the bus and keeps its own permission (opendbc safety/modes/ford.h). It is not in
-  panda's health packet, so agreement is checked by what panda does: if it refuses BLOCKED_FRAMES messages within
-  BLOCKED_WINDOW seconds while steering only is on, the two disagree and this disengages (controlsMismatch).
-  The usual controlsAllowed comparison is skipped in this state: panda's controls_allowed is false by design.
+  Panda reads the same buttons off the bus and keeps its own permission (opendbc safety/modes/ford.h). The two are
+  kept in step by one rule: this module alone decides what a press means, and panda follows it. Panda grants on
+  every lane centering press and holds the grant only while pandad's heartbeat says selfdrived is enabled, so a
+  press refused here and an engagement ended here are gone there within about half a second, and the driver's next
+  press is a fresh request on both sides. (Panda toggling on the same press, as it first did, left the two opposite
+  after any refusal or self-ended engagement: test_lateral_only_panda.py.) Cancel and cruise off end it on both
+  sides directly.
+  Panda's permission is not in its health packet, so agreement is also checked by what panda does: if it refuses
+  BLOCKED_FRAMES messages within BLOCKED_WINDOW seconds while steering only is on, the two disagree and this
+  disengages (controlsMismatch). The usual controlsAllowed comparison is skipped in this state: panda's
+  controls_allowed is false by design.
 
 Nothing here runs unless the car was opted in when card started (FordLateralOnly, off by default), which also gives
 panda the matching safety param.
@@ -63,6 +71,7 @@ class LateralOnly:
     self.available = ford_lateral_only.enabled(CP)
     self.on = False            # enabled, steering only
     self.requested = False     # this frame asks the state machine to enter steering only
+    self.cancel_held = False   # the cancel button is down
     self.since = 0.
     self.reason = ""           # why steering only last ended, for the log
     self._blocked: deque[tuple[float, int]] = deque()
@@ -75,7 +84,15 @@ class LateralOnly:
     if not enabled:
       self.on = False
 
-    if any(be.type == ButtonType.lkas and be.pressed for be in CS.buttonEvents):
+    for be in CS.buttonEvents:
+      if be.type == ButtonType.cancel:
+        self.cancel_held = be.pressed
+    if self.cancel_held:
+      # Cancel ends steering only, and while it is held a lane centering press asks for nothing. Panda rules the
+      # same way, by the button's level, so the two cannot read a press made with cancel still down differently.
+      if self.on and EventName.buttonCancel not in events.names:
+        events.add(EventName.buttonCancel)
+    elif any(be.type == ButtonType.lkas and be.pressed for be in CS.buttonEvents):
       if not enabled:
         self.requested = True
         events.add(EventName.buttonEnable)
