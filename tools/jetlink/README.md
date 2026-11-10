@@ -47,26 +47,53 @@ On the comma, from a built checkout with its submodules available:
 
 ```sh
 OUTPUT=/data/jetlink-bench/runs/my-test bash tools/jetlink/bench.sh \
-  --seconds 180 --resources
+  --seconds 300 --record --resources
 ```
 
 Use a new output directory each time. `--small` measures the comma's local
 model without starting the USB owner. The runner reads the real device's
 offroad flag and saved vehicle/calibration parameters before entering a
-private params and messaging namespace. It starts only the USB owner,
-camerad, modeld and optional resource sampler. It stops if the real offroad
+private params and messaging namespace. It starts the USB owner, camerad,
+modeld and optional resource sampler. `--record` also starts logmessaged,
+loggerd, encoderd, dmonitoringmodeld and dmonitoringd. It checks for valid
+driver-model and monitoring-policy messages and recordings from all three
+cameras; runs of at least 150 seconds must exercise segment rotation.
+It stops if the real offroad
 flag changes or a child exits. No controls or pandad process is started.
 The owner setting is cleared before shutdown so it restores its USB/VM
 tuning. Jetlink keeps USB input current cut while a host remains attached;
 the comma therefore continues to require its separate power supply.
 
-## Installed-release test copy
+## Installed development fork
 
-The user's installed release is older than this development branch. The
-first hardware tests use `/data/jetlink-bench/openpilot`, a separate copy of
-release-mici `f7db927c728bab57bb1263e05465766a8f28fc9d`, to preserve its
-compiled camera, tinygrad, model and messaging compatibility. The boot
-checkout `/data/openpilot` is unchanged.
+On 2026-11-09, the complete `nousr/openpilot:jetlink-usb-bench` fork was
+installed on the comma four at integration commit
+`f3046cb2c436f384a9bdce6bce730e9f88bf93f3`, pinning
+`nousr/jetlink:mac-chestnut` at
+`903123938148e63d7b5c2fb2ccac86fe1ef51eec`.
+
+`/data/openpilot` points to `/data/jetlink-bench/full-openpilot`. The previous
+release checkout was preserved at `/data/jetlink-bench/stock-openpilot-f7db927`.
+The official AGNOS updater installed and hash-verified version 20.3 in slot A;
+slot B retains the previous OS. Both the initial build and the native rebuild
+after reboot completed. The checkout has its own `.venv`, with its interpreter
+and dependency cache under `/data/jetlink-bench` so they survive an OS update.
+The launch script and bench wrapper select that environment when available.
+
+Normal offroad startup was checked through `deviceState`, `managerState` and
+`pandaStates`, including the UI, hardwared and pandad. Automatic updates are
+disabled for this development checkout; upstream `updated` intentionally exits
+when `DisableUpdates` is set. Six adapter tests and 235 params/messaging tests
+passed on the device runtime. Installing this fork does not enable Jetlink in
+the normal driving manager: the private benchmark gate remains in place.
+
+## Earlier installed-release test copy
+
+The first hardware tests used `/data/jetlink-bench/openpilot`, a separate copy
+of release-mici `f7db927c728bab57bb1263e05465766a8f28fc9d`, to preserve its
+compiled camera, tinygrad, model and messaging compatibility. At that stage
+the boot checkout was unchanged. This directory is retained as historical
+evidence; current tests use the installed development fork described above.
 
 Copy `openpilot/jetlink_adapter.py`, this directory and the pinned
 `jetlink_repo` into that separate release copy, using LF line endings.
@@ -93,9 +120,45 @@ fallback. Jetlink's fork adds five USB-owner setup tests; its openpilot suite
 passed 659 tests and 198 subtests, with two skipped on macOS. The adapter
 tests also ran against the comma's compiled runtime.
 
-Hardware evidence belongs in `bench-results.json` beside this document.
-Frame CSV, owner/modeld logs and resource samples remain in the experiment
-directories on the comma and Mac.
+The initial release-overlay evidence is in `bench-results.json`; complete-fork
+evidence is in `full-fork-results.json`. Frame CSV, owner/modeld logs and
+resource samples remain in the experiment directories. Camera recordings and
+device settings are not committed to either fork.
+
+### Full fork on AGNOS 20.3
+
+The five-minute USB 3 workload included recording from all three cameras,
+driver-model inference and the monitoring policy. It published 5,813
+large-model frames and produced five complete recording segments. Excluding
+the first ten large-model frames, execution time was 28.90 ms median,
+31.22 ms p99 and 34.97 ms maximum, with zero frames over 50 ms. The first
+large-model frame took 53.08 ms. The local model also had a cold-start spike.
+
+After the first large-model second, camera frame IDs were consecutive, all
+model messages were valid, and the largest subscriber-observed arrival gap
+was 69.50 ms. Camera EOF to publication was 53.15 ms median and 55.52 ms p99;
+this is a different measurement from model execution time. There were no
+held-frame log entries. Driver-model output ran at 19.99 Hz, with 5,955 valid
+frames; monitoring-policy messages became valid after the driving model
+started. System available memory remained above 1.81 GiB.
+
+A separate two-minute recording run froze the Mac server with SIGSTOP for
+20 seconds. The comma held five predictions, switched to its local model,
+and rejoined Chestnut after SIGCONT. The first local frame took 27.68 ms;
+the gap between published messages at that transition was 79.92 ms. One
+camera frame ID was missing during the run, despite the filtered drop
+counter staying at zero. Held predictions are explicitly separate from
+fresh inference and from missing messages.
+
+A third recording run physically disconnected the data cable for about
+76 seconds while keeping separate power connected. The fallback frame's
+published execution time was 39.04 ms (the inner fallback log measured
+38 ms), with a 60.10 ms message-arrival gap. Reconnecting the same cable
+restored USB 3 and Chestnut rejoined automatically; that first rejoin frame
+took 51.51 ms. After startup, there were no missing camera frame IDs or
+invalid model messages in this run, which produced three complete segments.
+
+### Earlier release-overlay results
 
 The three-minute USB 3 run published 3,449 large-model frames. Excluding the
 first ten large-model frames, execution time was 28.95 ms median, 31.18 ms
@@ -107,12 +170,11 @@ Replacing the cable changed both endpoints from USB 2 to USB 3.
 A separate USB 2 test stopped the Mac server with SIGTERM, left it stopped
 for about 21 seconds, then restarted it. Predictions switched to the local
 model and back to the large model. This tests host process recovery, not a
-physical cable pull or an indefinitely stalled host. Bench processes and
-the temporary Mac server were stopped after testing.
+physical cable pull or an indefinitely stalled host.
 
-Before any driving integration: validate a complete fork build; extend
-USB 3 testing to sustained recording/driver-monitoring load; compare
-recorded-route outputs; test cable removal, stalled host and
-recovery; then implement manager ownership, UI/status, shutdown and model
-transition handling. This bench does not qualify vehicle actuation or
-closed-course driving.
+Next work is recorded-route numerical parity, longer thermal/load tests,
+and normal-manager integration with ownership, UI/status, shutdown and
+model transition handling. In particular, expose held-output age and the
+engagement restrictions around fallback/rejoin instead of relying only on
+message validity or the filtered drop counter. This bench does not qualify
+vehicle actuation or closed-course driving.

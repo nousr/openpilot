@@ -1,0 +1,577 @@
+{
+  "date": "2026-11-09",
+  "scope": "Installed development fork; parked, isolated camera/model/recording/driver-monitoring benchmarks. Jetlink remains disabled in the normal manager.",
+  "hardware": {
+    "comma": "comma four",
+    "power": "Separate comma supply; Mac on AC",
+    "host": "MacBook Pro M3 Max, 64 GB"
+  },
+  "model": {
+    "sha256": "87fe86ca0813c099efddf9173ba503be2e40ea4c5362c36812a44141f4cb07d4",
+    "runtime": "ONNX Runtime 1.29.0, CoreML CPUAndNeuralEngine then CPUAndGPU",
+    "name": "Chestnut Mountain Dew"
+  },
+  "source": {
+    "openpilot_repository": "https://github.com/nousr/openpilot",
+    "openpilot_branch": "jetlink-usb-bench",
+    "openpilot_tested_commit": "f3046cb2c436f384a9bdce6bce730e9f88bf93f3",
+    "jetlink_repository": "https://github.com/nousr/jetlink",
+    "jetlink_branch": "mac-chestnut",
+    "jetlink_commit": "903123938148e63d7b5c2fb2ccac86fe1ef51eec",
+    "agnos": "20.3",
+    "active_os_slot": "A",
+    "boot_checkout": "/data/jetlink-bench/full-openpilot",
+    "preserved_previous_checkout": "/data/jetlink-bench/stock-openpilot-f7db927",
+    "previous_os_slot": "B",
+    "automatic_updates_disabled": true
+  },
+  "verification": {
+    "native_build_before_and_after_os_update": "passed",
+    "adapter_tests_on_device": 6,
+    "params_messaging_tests_on_device": 235,
+    "normal_offroad_startup": "passed; valid deviceState, managerState and pandaStates",
+    "usb": "super-speed / USB 3 confirmed at both endpoints, including cable reconnection",
+    "benchmark_process_exit_codes": [
+      0,
+      0,
+      0
+    ],
+    "host_stall": "SIGSTOP for 20.005 seconds, then SIGCONT; five held predictions followed by local-model fallback and automatic Chestnut rejoin",
+    "physical_cable_loss": "About 76 seconds disconnected, separate comma power retained; local-model fallback and automatic USB 3 Chestnut rejoin"
+  },
+  "runs": {
+    "full-cable-loss": {
+      "raw_summary": {
+        "interrupted": false,
+        "all": {
+          "frames": 3518,
+          "exec_p50_p99_p999_max_ms": [
+            27.606925927102566,
+            31.45708028227091,
+            36.56049020961011,
+            274.2896378040314
+          ],
+          "over_50ms": 3,
+          "max_drop_pct": 0.0,
+          "lagging_frames": 0,
+          "invalid_frames": 1,
+          "states": [
+            "joining",
+            "retrying",
+            "running"
+          ]
+        },
+        "big": {
+          "frames": 1990,
+          "exec_p50_p99_p999_max_ms": [
+            28.67553010582924,
+            31.931615211069577,
+            34.43542882800438,
+            52.46531218290329
+          ],
+          "over_50ms": 2,
+          "max_drop_pct": 0.0,
+          "lagging_frames": 0,
+          "invalid_frames": 0,
+          "states": [
+            "joining",
+            "retrying",
+            "running"
+          ]
+        },
+        "small": {
+          "frames": 1528,
+          "exec_p50_p99_p999_max_ms": [
+            24.94193986058235,
+            25.413560885936022,
+            32.81720922515013,
+            274.2896378040314
+          ],
+          "over_50ms": 1,
+          "max_drop_pct": 0.0,
+          "lagging_frames": 0,
+          "invalid_frames": 1,
+          "states": [
+            "joining",
+            "retrying",
+            "running"
+          ]
+        },
+        "driver_monitoring": {
+          "model_frames": 3560,
+          "valid_model_frames": 3560,
+          "policy_messages": 3560,
+          "valid_policy_messages": 3514,
+          "model_exec_p50_p99_max_ms": [
+            14.114934019744396,
+            14.565720902755851,
+            284.98712182044983
+          ]
+        },
+        "recording": {
+          "segments": 3,
+          "complete_segments": [
+            "00000000--dc9f3e3583--0",
+            "00000000--dc9f3e3583--1",
+            "00000000--dc9f3e3583--2"
+          ]
+        }
+      },
+      "model_segments": [
+        {
+          "big": false,
+          "start_s": 4.145402985999908,
+          "end_s": 4.200815252999973,
+          "frames": 3
+        },
+        {
+          "big": true,
+          "start_s": 4.260811812999918,
+          "end_s": 40.390769428,
+          "frames": 724
+        },
+        {
+          "big": false,
+          "start_s": 40.45086758299999,
+          "end_s": 116.63070254999991,
+          "frames": 1525
+        },
+        {
+          "big": true,
+          "start_s": 116.70095765099995,
+          "end_s": 179.950710038,
+          "frames": 1266
+        }
+      ],
+      "big_all": {
+        "frames": 1990,
+        "p50_p99_max_ms": [
+          28.67553010582924,
+          31.931615211069577,
+          52.46531218290329
+        ],
+        "over_50ms": 2,
+        "invalid_frames": 0,
+        "max_reported_drop_pct": 0.0
+      },
+      "big_excluding_first_10": {
+        "frames": 1980,
+        "p50_p99_max_ms": [
+          28.6750216037035,
+          31.836200729012493,
+          51.50720477104187
+        ],
+        "over_50ms": 1,
+        "invalid_frames": 0,
+        "max_reported_drop_pct": 0.0
+      },
+      "note": "Execution time includes comma warp, USB and Mac inference. Initial small-model startup is retained in raw_summary. The first ten big-model frames are excluded only in the explicitly labelled steady-state statistic; recovery runs retain any later transitions. Reported drops are modeld-filtered, not an independent frame-loss audit.",
+      "continuity_after_first_big_plus_one_second": {
+        "rows": 3494,
+        "arrival_gap_p50_p99_max_ms": [
+          49.99944999997297,
+          60.142602720025025,
+          79.79516699992928
+        ],
+        "arrival_gaps_over_100ms": 0,
+        "missing_camera_frame_ids": 0,
+        "repeated_or_decreasing_frame_ids": 0,
+        "invalid_frames": 0,
+        "camera_eof_to_publication_p50_p99_max_ms": [
+          51.813734,
+          55.597565030000005,
+          75.738336
+        ],
+        "note": "Arrival times are observed by a 100 Hz subscriber; frame-id gaps can include subscriber misses. Neither measure detects a held prediction by itself."
+      },
+      "transitions": [
+        {
+          "elapsed_s": 4.260811812999918,
+          "to_big": true,
+          "exec_ms": 52.46531218290329,
+          "arrival_gap_ms": 59.99655999994502,
+          "camera_frame_id_gap": 1
+        },
+        {
+          "elapsed_s": 40.45086758299999,
+          "to_big": false,
+          "exec_ms": 39.038386195898056,
+          "arrival_gap_ms": 60.09815499999149,
+          "camera_frame_id_gap": 1
+        },
+        {
+          "elapsed_s": 116.70095765099995,
+          "to_big": true,
+          "exec_ms": 51.50720477104187,
+          "arrival_gap_ms": 70.2551010000434,
+          "camera_frame_id_gap": 1
+        }
+      ],
+      "fault_log_lines": [
+        "jetlink: next attempt in 1 s (failure 1, link held 36 s, drop 1, lag 0 this drive)",
+        "jetlink: fallback frame 38 ms: link 2, demote 10, small model 26"
+      ],
+      "max_logged_held_counter_per_join": 0,
+      "resources": {
+        "samples": 180,
+        "min_system_available_mib": 1919.59375,
+        "max_sampled_bench_process_pss_mib": 450.3037109375,
+        "note": "PSS is sampled every ten seconds and excludes descendants not listed as bench children.",
+        "pgscan_direct_delta": 0,
+        "pgsteal_direct_delta": 0,
+        "allocstall_normal_delta": 0
+      },
+      "driver_model_observed_hz": 19.983184242767532
+    },
+    "full-recording": {
+      "raw_summary": {
+        "interrupted": false,
+        "all": {
+          "frames": 5816,
+          "exec_p50_p99_p999_max_ms": [
+            28.89884077012539,
+            31.233985349535946,
+            32.11275286972531,
+            284.219890832901
+          ],
+          "over_50ms": 2,
+          "max_drop_pct": 0.0,
+          "lagging_frames": 0,
+          "invalid_frames": 1,
+          "states": [
+            "joining",
+            "running"
+          ]
+        },
+        "big": {
+          "frames": 5813,
+          "exec_p50_p99_p999_max_ms": [
+            28.898974880576134,
+            31.221289411187172,
+            31.97455531358731,
+            53.076326847076416
+          ],
+          "over_50ms": 1,
+          "max_drop_pct": 0.0,
+          "lagging_frames": 0,
+          "invalid_frames": 0,
+          "states": [
+            "joining",
+            "running"
+          ]
+        },
+        "small": {
+          "frames": 3,
+          "exec_p50_p99_p999_max_ms": [
+            25.268206372857094,
+            279.0408571437001,
+            283.70198746398097,
+            284.219890832901
+          ],
+          "over_50ms": 1,
+          "max_drop_pct": 0.0,
+          "lagging_frames": 0,
+          "invalid_frames": 1,
+          "states": [
+            "joining"
+          ]
+        },
+        "driver_monitoring": {
+          "model_frames": 5955,
+          "valid_model_frames": 5955,
+          "policy_messages": 5955,
+          "valid_policy_messages": 5812,
+          "model_exec_p50_p99_max_ms": [
+            14.157922007143497,
+            14.484319146722555,
+            367.71923303604126
+          ]
+        },
+        "recording": {
+          "segments": 5,
+          "complete_segments": [
+            "00000000--dae87d7230--0",
+            "00000000--dae87d7230--1",
+            "00000000--dae87d7230--2",
+            "00000000--dae87d7230--3",
+            "00000000--dae87d7230--4"
+          ]
+        }
+      },
+      "model_segments": [
+        {
+          "big": false,
+          "start_s": 9.256427083000005,
+          "end_s": 9.321446356000024,
+          "frames": 3
+        },
+        {
+          "big": true,
+          "start_s": 9.401280840000027,
+          "end_s": 299.97071517399996,
+          "frames": 5813
+        }
+      ],
+      "big_all": {
+        "frames": 5813,
+        "p50_p99_max_ms": [
+          28.898974880576134,
+          31.221289411187172,
+          53.076326847076416
+        ],
+        "over_50ms": 1,
+        "invalid_frames": 0,
+        "max_reported_drop_pct": 0.0
+      },
+      "big_excluding_first_10": {
+        "frames": 5803,
+        "p50_p99_max_ms": [
+          28.90022285282612,
+          31.21886290609836,
+          34.96577963232994
+        ],
+        "over_50ms": 0,
+        "invalid_frames": 0,
+        "max_reported_drop_pct": 0.0
+      },
+      "note": "Execution time includes comma warp, USB and Mac inference. Initial small-model startup is retained in raw_summary. The first ten big-model frames are excluded only in the explicitly labelled steady-state statistic; recovery runs retain any later transitions. Reported drops are modeld-filtered, not an independent frame-loss audit.",
+      "continuity_after_first_big_plus_one_second": {
+        "rows": 5792,
+        "arrival_gap_p50_p99_max_ms": [
+          49.995967000029395,
+          60.224558199968214,
+          69.5010239999192
+        ],
+        "arrival_gaps_over_100ms": 0,
+        "missing_camera_frame_ids": 0,
+        "repeated_or_decreasing_frame_ids": 0,
+        "invalid_frames": 0,
+        "camera_eof_to_publication_p50_p99_max_ms": [
+          53.148047500000004,
+          55.51873348,
+          59.216568
+        ],
+        "note": "Arrival times are observed by a 100 Hz subscriber; frame-id gaps can include subscriber misses. Neither measure detects a held prediction by itself."
+      },
+      "transitions": [
+        {
+          "elapsed_s": 9.401280840000027,
+          "to_big": true,
+          "exec_ms": 53.076326847076416,
+          "arrival_gap_ms": 79.8344840000027,
+          "camera_frame_id_gap": 1
+        }
+      ],
+      "fault_log_lines": [],
+      "max_logged_held_counter_per_join": 0,
+      "resources": {
+        "samples": 300,
+        "min_system_available_mib": 1860.15234375,
+        "max_sampled_bench_process_pss_mib": 540.8017578125,
+        "note": "PSS is sampled every ten seconds and excludes descendants not listed as bench children.",
+        "pgscan_direct_delta": 0,
+        "pgsteal_direct_delta": 0,
+        "allocstall_normal_delta": 0
+      },
+      "driver_model_observed_hz": 19.989244024612873
+    },
+    "full-stalled-host": {
+      "raw_summary": {
+        "interrupted": false,
+        "all": {
+          "frames": 2325,
+          "exec_p50_p99_p999_max_ms": [
+            28.997503221035004,
+            31.444761902093877,
+            47.01289772987368,
+            278.5748243331909
+          ],
+          "over_50ms": 2,
+          "max_drop_pct": 0.0,
+          "lagging_frames": 0,
+          "invalid_frames": 1,
+          "states": [
+            "joining",
+            "retrying",
+            "running"
+          ]
+        },
+        "big": {
+          "frames": 1924,
+          "exec_p50_p99_p999_max_ms": [
+            29.238021932542324,
+            31.477275975048542,
+            46.974650695920005,
+            55.96993863582611
+          ],
+          "over_50ms": 1,
+          "max_drop_pct": 0.0,
+          "lagging_frames": 0,
+          "invalid_frames": 0,
+          "states": [
+            "joining",
+            "retrying",
+            "running"
+          ]
+        },
+        "small": {
+          "frames": 401,
+          "exec_p50_p99_p999_max_ms": [
+            24.81214515864849,
+            25.417426601052284,
+            178.21500599384876,
+            278.5748243331909
+          ],
+          "over_50ms": 1,
+          "max_drop_pct": 0.0,
+          "lagging_frames": 0,
+          "invalid_frames": 1,
+          "states": [
+            "joining",
+            "retrying",
+            "running"
+          ]
+        },
+        "driver_monitoring": {
+          "model_frames": 2357,
+          "valid_model_frames": 2357,
+          "policy_messages": 2357,
+          "valid_policy_messages": 2322,
+          "model_exec_p50_p99_max_ms": [
+            14.100409112870693,
+            15.401533991098406,
+            282.40829706192017
+          ]
+        },
+        "recording": {
+          "segments": 2,
+          "complete_segments": [
+            "00000000--ae1aecdbf2--0",
+            "00000000--ae1aecdbf2--1"
+          ]
+        }
+      },
+      "model_segments": [
+        {
+          "big": false,
+          "start_s": 3.7958984480000026,
+          "end_s": 3.8513522260000173,
+          "frames": 3
+        },
+        {
+          "big": true,
+          "start_s": 3.910972984000068,
+          "end_s": 35.85086729500006,
+          "frames": 640
+        },
+        {
+          "big": false,
+          "start_s": 35.930783751000035,
+          "end_s": 55.770748164999986,
+          "frames": 398
+        },
+        {
+          "big": true,
+          "start_s": 55.83127520200003,
+          "end_s": 119.97063670900002,
+          "frames": 1284
+        }
+      ],
+      "big_all": {
+        "frames": 1924,
+        "p50_p99_max_ms": [
+          29.238021932542324,
+          31.477275975048542,
+          55.96993863582611
+        ],
+        "over_50ms": 1,
+        "invalid_frames": 0,
+        "max_reported_drop_pct": 0.0
+      },
+      "big_excluding_first_10": {
+        "frames": 1914,
+        "p50_p99_max_ms": [
+          29.238976538181305,
+          31.457430310547352,
+          47.033585608005524
+        ],
+        "over_50ms": 0,
+        "invalid_frames": 0,
+        "max_reported_drop_pct": 0.0
+      },
+      "note": "Execution time includes comma warp, USB and Mac inference. Initial small-model startup is retained in raw_summary. The first ten big-model frames are excluded only in the explicitly labelled steady-state statistic; recovery runs retain any later transitions. Reported drops are modeld-filtered, not an independent frame-loss audit.",
+      "continuity_after_first_big_plus_one_second": {
+        "rows": 2301,
+        "arrival_gap_p50_p99_max_ms": [
+          49.999925000008716,
+          60.22145705001094,
+          79.9164559999781
+        ],
+        "arrival_gaps_over_100ms": 0,
+        "missing_camera_frame_ids": 1,
+        "repeated_or_decreasing_frame_ids": 0,
+        "invalid_frames": 0,
+        "camera_eof_to_publication_p50_p99_max_ms": [
+          53.18128,
+          55.61138,
+          71.105703
+        ],
+        "note": "Arrival times are observed by a 100 Hz subscriber; frame-id gaps can include subscriber misses. Neither measure detects a held prediction by itself."
+      },
+      "transitions": [
+        {
+          "elapsed_s": 3.910972984000068,
+          "to_big": true,
+          "exec_ms": 55.96993863582611,
+          "arrival_gap_ms": 59.620758000050955,
+          "camera_frame_id_gap": 1
+        },
+        {
+          "elapsed_s": 35.930783751000035,
+          "to_big": false,
+          "exec_ms": 27.67527848482132,
+          "arrival_gap_ms": 79.9164559999781,
+          "camera_frame_id_gap": 1
+        },
+        {
+          "elapsed_s": 55.83127520200003,
+          "to_big": true,
+          "exec_ms": 36.40161082148552,
+          "arrival_gap_ms": 60.52703700004258,
+          "camera_frame_id_gap": 1
+        }
+      ],
+      "fault_log_lines": [
+        "jetlink: frame 637 warp 1.5 data 0.4 send 0.8 wait 43.5 ms, held (1 so far); server gpu 23.7 queue 0.1 total 23.7 ms; ffs maxima prepare 0.0 read_wait 0.0 handoff 0.0 ms",
+        "jetlink: frame 638 warp 1.5 data 0.3 send 0.8 wait 43.6 ms, held (2 so far); server gpu 23.7 queue 0.1 total 23.7 ms; ffs maxima prepare 0.0 read_wait 0.0 handoff 0.0 ms",
+        "jetlink: frame 639 warp 1.5 data 0.3 send 0.8 wait 43.5 ms, held (3 so far); server gpu 23.7 queue 0.1 total 23.7 ms; ffs maxima prepare 0.0 read_wait 0.0 handoff 0.0 ms",
+        "jetlink: large model held 5 frames in a row, the small model drives from the next",
+        "jetlink: next attempt in 1 s (failure 1, link held 32 s, drop 0, lag 1 this drive)"
+      ],
+      "max_logged_held_counter_per_join": 3,
+      "resources": {
+        "samples": 120,
+        "min_system_available_mib": 1927.96875,
+        "max_sampled_bench_process_pss_mib": 446.3994140625,
+        "note": "PSS is sampled every ten seconds and excludes descendants not listed as bench children.",
+        "pgscan_direct_delta": 0,
+        "pgsteal_direct_delta": 0,
+        "allocstall_normal_delta": 0
+      },
+      "driver_model_observed_hz": 19.972806759779182
+    }
+  },
+  "limitations": [
+    "No vehicle actuation or driving tests were performed.",
+    "Synthetic parity passed earlier; recorded-route numerical parity remains to be tested.",
+    "Five-minute baseline is not a long-duration thermal qualification.",
+    "A stalled host produced five held predictions and one missing camera frame ID despite a zero filtered-drop counter.",
+    "Initial local-model and big-model starts, plus cable reconnection, include latency spikes documented in raw results.",
+    "The normal-manager owner, UI/status, shutdown and engagement gating still require integration."
+  ],
+  "artifacts": {
+    "comma": "/data/jetlink-bench/runs/full-*",
+    "mac": "~/Developer/comma-mac/experiments/2026-11-09-full-fork",
+    "recordings_and_device_settings_committed": false
+  }
+}
