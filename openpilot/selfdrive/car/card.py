@@ -20,6 +20,7 @@ from opendbc.car.car_helpers import get_car, interfaces
 from opendbc.car.interfaces import CarInterfaceBase, RadarInterfaceBase
 from openpilot.selfdrive.pandad import can_capnp_to_list, can_list_to_can_capnp
 from openpilot.selfdrive.car.cruise import VCruiseHelper
+from openpilot.selfdrive.selfdrived import lateral_only
 
 REPLAY = "REPLAY" in os.environ
 
@@ -112,6 +113,8 @@ class Car:
     openpilot_enabled_toggle = self.params.get_bool("OpenpilotEnabledToggle")
     controller_available = self.CI.CC is not None and openpilot_enabled_toggle and not self.CP.dashcamOnly
     self.CP.passive = not controller_available or self.CP.dashcamOnly
+    if controller_available:
+      lateral_only.setup(self.params, self.CP, cloudlog.event)
     if self.CP.passive:
       safety_config = structs.CarParams.SafetyConfig()
       safety_config.safetyModel = structs.CarParams.SafetyModel.noOutput
