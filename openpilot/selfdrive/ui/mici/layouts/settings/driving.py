@@ -57,6 +57,11 @@ class DrivingLayoutMici(NavScroller):
                                  description="Warn when you drift across a detected lane line.\n" +
                                              "Only above 31 mph (50 km/h), with no turn signal.")
     always_on_dm_toggle = BigParamControl("always-on driver monitor", "AlwaysOnDM", description="Monitor the driver even when openpilot is not engaged.")
+    mads_toggle = BigParamControl("MADS (steering only)", "MadsEnabled", toggle_callback=restart_needed_callback,
+                                  description="On Mustang Mach-E, turn cruise on and use the lane centering button.\n"
+                                              "You control speed. Brake does not disengage steering.\n"
+                                              "Use lane centering, Cancel, or cruise off to disengage.")
+    mads_toggle.set_enabled(lambda: ui_state.is_offroad())
     enable_openpilot = BigParamControl("enable openpilot", "OpenpilotEnabledToggle", toggle_callback=restart_needed_callback,
                                        description="Enable to use openpilot driver assistance.\n" +
                                                    "Disable to use your car's stock driver assistance.")
@@ -66,12 +71,14 @@ class DrivingLayoutMici(NavScroller):
       self._experimental_btn,
       ldw_toggle,
       always_on_dm_toggle,
+      mads_toggle,
       enable_openpilot,
     ])
 
     # Toggle lists
     self._refresh_toggles = (
       ("ExperimentalMode", self._experimental_btn),
+      ("MadsEnabled", mads_toggle),
       ("IsLdwEnabled", ldw_toggle),
       ("AlwaysOnDM", always_on_dm_toggle),
       ("OpenpilotEnabledToggle", enable_openpilot),

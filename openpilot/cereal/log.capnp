@@ -130,6 +130,7 @@ struct OnroadEvent @0xc4fa6047f024e718 {
     excessiveActuation @96;
     bigModelLoading @100;
     bigModelFailed @102;
+    steeringOnly @106;
 
     lowBatteryDEPRECATED @40;
     soundsUnavailableDEPRECATED @47;
@@ -816,6 +817,7 @@ struct SelfdriveState {
   enabled @1 :Bool;
   active @2 :Bool;
   engageable @9 :Bool;  # can OP be engaged?
+  lateralOnly @14 :Bool;  # enabled for steering only: the driver has the pedals, no longitudinal control
 
   # UI alerts
   alertText1 @3 :Text;
