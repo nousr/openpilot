@@ -58,8 +58,8 @@ class DrivingLayoutMici(NavScroller):
                                              "Only above 31 mph (50 km/h), with no turn signal.")
     always_on_dm_toggle = BigParamControl("always-on driver monitor", "AlwaysOnDM", description="Monitor the driver even when openpilot is not engaged.")
     mads_toggle = BigParamControl("MADS (steering only)", "MadsEnabled", toggle_callback=restart_needed_callback,
-                                  description="On Mustang Mach-E, turn cruise on and use the lane centering button.\n"
-                                              "You control speed. Brake does not disengage steering.\n"
+                                  description="On Mustang Mach-E, turn cruise on and use the lane centering button.\n" +
+                                              "You control speed. Brake does not disengage steering.\n" +
                                               "Use lane centering, Cancel, or cruise off to disengage.")
     mads_toggle.set_enabled(lambda: ui_state.is_offroad())
     enable_openpilot = BigParamControl("enable openpilot", "OpenpilotEnabledToggle", toggle_callback=restart_needed_callback,
